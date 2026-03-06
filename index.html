@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f0f1a" />
+  <meta name="description" content="Seu assistente pessoal para foco e TDAH" />
+  <title>Claudio — Seu Parceiro de Foco</title>
+  <link rel="manifest" href="#" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a12;
+      --surface: #12121e;
+      --surface2: #1a1a2e;
+      --border: #2a2a45;
+      --accent: #7c6af7;
+      --accent2: #f7a26a;
+      --accent3: #6af7c8;
+      --text: #e8e8f0;
+      --text-dim: #7070a0;
+      --danger: #f76a6a;
+      --success: #6af7a2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background animated mesh */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: 
+        radial-gradient(ellipse 60% 40% at 20% 20%, rgba(124,106,247,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 60% at 80% 80%, rgba(106,247,200,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 50% at 50% 50%, rgba(247,162,106,0.04) 0%, transparent 60%);
+      animation: meshMove 20s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes meshMove {
+      0% { transform: translate(0,0) rotate(0deg); }
+      100% { transform: translate(2%, 2%) rotate(2deg); }
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 0 100px 0;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      padding: 28px 24px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(10,10,18,0.92);
+      backdrop-filter: blur(20px);
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent3));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(124,106,247,0.3);
+      animation: avatarPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes avatarPulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(124,106,247,0.3); }
+      50% { box-shadow: 0 0 35px rgba(124,106,247,0.6); }
+    }
+
+    .header-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+    }
+
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--accent3);
+    }
+
+    .status-dot::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent3);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    /* Tab bar */
+    .tabs {
+      display: flex;
+      padding: 16px 24px 0;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px 8px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab:hover:not(.active) {
+      color: var(--text);
+    }
+
+    /* Chat section */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 180px);
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .message {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      animation: msgIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .message.assistant { align-items: flex-start; }
+    .message.user { align-items: flex-end; }
+
+    .msg-bubble {
+      max-width: 85%;
+      padding: 14px 18px;
+      border-radius: 18px;
+      font-size: 14.5px;
+      line-height: 1.6;
+    }
+
+    .assistant .msg-bubble {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 6px;
+      color: var(--text);
+    }
+
+    .user .msg-bubble {
+      background: linear-gradient(135deg, var(--accent), #9b8cf9);
+      border-bottom-right-radius: 6px;
+      color: white;
+    }
+
+    .msg-time {
+      font-size: 11px;
+      color: var(--text-dim);
+      padding: 0 4px;
+    }
+
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 14px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      border-bottom-left-radius: 6px;
+      width: fit-content;
+    }
+
+    .typing span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: typingBounce 1.2s ease-in-out infinite;
+    }
+
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* Chat input */
+    .chat-input-area {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      background: rgba(10,10,18,0.95);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      bottom: 0;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      transition: border-color 0.2s;
+    }
+
+    .chat-input:focus {
+      border-color: var(--accent);
+    }
+
+    .chat-input::placeholder { color: var(--text-dim); }
+
+    .send-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), #9b8cf9);
+      border: none;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover { transform: scale(1.05); }
+    .send-btn:active { transform: scale(0.95); }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Tasks section */
+    .tasks-container { padding: 20px 24px; }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    .task-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: all 0.2s;
+      animation: msgIn 0.3s ease;
+    }
+
+    .task-card:hover { border-color: var(--accent); }
+
+    .task-check {
+      width: 22px;
+      height: 22px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      background: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      margin-top: 1px;
+    }
+
+    .task-check.done {
+      background: var(--success);
+      border-color: var(--success);
+      color: #0a0a12;
+    }
+
+    .task-check:not(.done):hover { border-color: var(--accent); }
+
+    .task-content { flex: 1; }
+
+    .task-text {
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+
+    .task-text.done {
+      text-decoration: line-through;
+      color: var(--text-dim);
+    }
+
+    .task-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .task-time {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .task-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-pending { background: rgba(247,162,106,0.15); color: var(--accent2); }
+    .badge-done { background: rgba(106,247,162,0.15); color: var(--success); }
+    .badge-focus { background: rgba(124,106,247,0.15); color: var(--accent); }
+
+    .task-delete {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .task-delete:hover { color: var(--danger); background: rgba(247,106,106,0.1); }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-dim);
+    }
+
+    .empty-state .emoji { font-size: 48px; margin-bottom: 16px; }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    /* Summary section */
+    .summary-container { padding: 20px 24px; }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .summary-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .summary-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .summary-icon.purple { background: rgba(124,106,247,0.15); }
+    .summary-icon.orange { background: rgba(247,162,106,0.15); }
+    .summary-icon.green { background: rgba(106,247,162,0.15); }
+
+    .summary-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 14px 8px;
+      background: var(--surface2);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+
+    .stat-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .generate-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent), #9b8cf9);
+      border: none;
+      border-radius: 14px;
+      color: white;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .generate-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(124,106,247,0.35); }
+    .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .ai-summary-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      margin-top: 14px;
+      white-space: pre-wrap;
+    }
+
+    /* Settings section */
+    .settings-container { padding: 20px 24px; }
+
+    .setting-group {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .setting-item {
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .setting-item:last-child { border-bottom: none; }
+
+    .setting-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .setting-info { flex: 1; }
+
+    .setting-label {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .setting-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .setting-control input[type="text"],
+    .setting-control input[type="password"],
+    .setting-control select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      outline: none;
+      min-width: 130px;
+      transition: border-color 0.2s;
+    }
+
+    .setting-control input:focus,
+    .setting-control select:focus { border-color: var(--accent); }
+
+    .save-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+
+    .save-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Notif toast */
+    .toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--surface2);
+      border: 1px solid var(--accent);
+      border-radius: 14px;
+      padding: 12px 20px;
+      font-size: 13px;
+      color: var(--text);
+      z-index: 999;
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Nav bar */
+    .nav-bar {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      background: rgba(10,10,18,0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding: 8px 0 env(safe-area-inset-bottom, 8px);
+      z-index: 100;
+    }
+
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 4px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .nav-item.active { color: var(--accent); }
+    .nav-item:hover:not(.active) { color: var(--text); }
+
+    .nav-icon { font-size: 20px; }
+    .nav-label { font-size: 10px; font-weight: 500; }
+
+    /* Loading dots */
+    .loading {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .loading span {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: typingBounce 1s ease-in-out infinite;
+    }
+    .loading span:nth-child(2) { animation-delay: 0.15s; }
+    .loading span:nth-child(3) { animation-delay: 0.3s; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* Hidden sections */
+    .section { display: none; }
+    .section.active { display: block; }
+    .chat-container { display: none; }
+    .chat-container.active { display: flex; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="avatar">🧠</div>
+      <div>
+        <div class="header-name">Nexo</div>
+        <div class="status-dot">online agora</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="requestNotificationPermission()" title="Ativar notificações">🔔</button>
+      <button class="icon-btn" onclick="switchTab('settings')" title="Configurações">⚙️</button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('chat')" id="tab-chat">💬 Chat</button>
+    <button class="tab" onclick="switchTab('tasks')" id="tab-tasks">✅ Tarefas</button>
+    <button class="tab" onclick="switchTab('summary')" id="tab-summary">📊 Resumo</button>
+    <button class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Config</button>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-container active" id="section-chat">
+    <div class="messages" id="messages"></div>
+    <div class="chat-input-area">
+      <div class="chat-input-row">
+        <textarea class="chat-input" id="chatInput" placeholder="Conta o que você tá fazendo..." rows="1"
+          onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASKS -->
+  <div class="section" id="section-tasks">
+    <div class="tasks-container">
+      <div class="section-title">Tarefas de hoje</div>
+      <div id="tasks-list"></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section" id="section-summary">
+    <div class="summary-container">
+      <div class="summary-card">
+        <div class="summary-header">
+          <div class="summary-icon purple">📊</div>
+          <div class="summary-title">Seu dia até agora</div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-num" id="stat-tasks">0</div>
+            <div class="stat-label">tarefas</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num" id="stat-done">0</div>
+            <div class="stat-label">concluídas</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num" id="stat-msgs">0</div>
+            <div class="stat-label">trocas</div>
+          </div>
+        </div>
+        <button class="generate-btn" id="summaryBtn" onclick="generateSummary()">
+          ✨ Gerar resumo do dia com IA
+        </button>
+        <div class="ai-summary-box" id="ai-summary" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="section" id="section-settings">
+    <div class="settings-container">
+      <div class="section-title">Configurações</div>
+
+      <div class="setting-group">
+        <div class="setting-item">
+          <div class="setting-icon">🔑</div>
+          <div class="setting-info">
+            <div class="setting-label">API Key Anthropic</div>
+            <div class="setting-desc">Sua chave para usar o Claude Haiku</div>
+          </div>
+          <div class="setting-control">
+            <input type="password" id="apiKey" placeholder="sk-ant-..." />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="setting-icon">⏱️</div>
+          <div class="setting-info">
+            <div class="setting-label">Check-in a cada</div>
+            <div class="setting-desc">Intervalo de mensagens automáticas</div>
+          </div>
+          <div class="setting-control">
+            <select id="interval">
+              <option value="30">30 min</option>
+              <option value="60" selected>1 hora</option>
+              <option value="90">1h30</option>
+              <option value="120">2 horas</option>
+            </select>
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="setting-icon">👤</div>
+          <div class="setting-info">
+            <div class="setting-label">Seu nome</div>
+            <div class="setting-desc">Como o Nexo vai te chamar</div>
+          </div>
+          <div class="setting-control">
+            <input type="text" id="userName" placeholder="seu nome..." />
+          </div>
+        </div>
+      </div>
+
+      <button class="save-btn" onclick="saveSettings()">💾 Salvar configurações</button>
+
+      <div style="margin-top:24px">
+        <div class="section-title">Notificações</div>
+        <div class="setting-group">
+          <div class="setting-item">
+            <div class="setting-icon">🔔</div>
+            <div class="setting-info">
+              <div class="setting-label">Push notifications</div>
+              <div class="setting-desc" id="notif-status">Clique para ativar</div>
+            </div>
+            <div class="setting-control">
+              <button class="save-btn" style="margin:0;min-width:100px;padding:8px 12px;font-size:12px" onclick="requestNotificationPermission()">Ativar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px;">
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:8px;color:var(--accent)">🚀 Deploy na Vercel</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.7">
+          1. Salve este arquivo como <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">index.html</code><br>
+          2. Crie um repo no GitHub<br>
+          3. Conecte o repo na Vercel<br>
+          4. Deploy automático a cada push ✨
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ STATE ============
+let state = {
+  messages: [],
+  tasks: [],
+  settings: {
+    apiKey: '',
+    interval: 60,
+    userName: 'você'
+  },
+  checkInTimer: null,
+  isTyping: false
+};
+
+// ============ INIT ============
+function init() {
+  loadFromStorage();
+  renderMessages();
+  renderTasks();
+  updateStats();
+
+  if (state.messages.length === 0) {
+    const name = state.settings.userName || 'você';
+    setTimeout(() => {
+      addMessage('assistant', `Oi ${name}! 👋 Eu sou o **Nexo**, seu parceiro de foco. Tô aqui pra te ajudar a organizar o dia, não deixar você se perder nas ideias, e te dar uma força quando travar.\n\nMe conta: o que você tá fazendo agora?`);
+    }, 600);
+  }
+
+  scheduleCheckIn();
+  updateNotifStatus();
+}
+
+// ============ STORAGE ============
+function saveToStorage() {
+  try {
+    localStorage.setItem('nexo_messages', JSON.stringify(state.messages.slice(-50)));
+    localStorage.setItem('nexo_tasks', JSON.stringify(state.tasks));
+    localStorage.setItem('nexo_settings', JSON.stringify(state.settings));
+  } catch(e) {}
+}
+
+function loadFromStorage() {
+  try {
+    const msgs = localStorage.getItem('nexo_messages');
+    const tasks = localStorage.getItem('nexo_tasks');
+    const settings = localStorage.getItem('nexo_settings');
+    if (msgs) state.messages = JSON.parse(msgs);
+    if (tasks) state.tasks = JSON.parse(tasks);
+    if (settings) state.settings = { ...state.settings, ...JSON.parse(settings) };
+
+    // Populate settings UI
+    document.getElementById('apiKey').value = state.settings.apiKey || '';
+    document.getElementById('interval').value = state.settings.interval || 60;
+    document.getElementById('userName').value = state.settings.userName || '';
+  } catch(e) {}
+}
+
+// ============ MESSAGES ============
+function addMessage(role, content, save = true) {
+  const msg = { role, content, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) };
+  state.messages.push(msg);
+  renderMessages();
+  if (save) saveToStorage();
+  return msg;
+}
+
+function renderMessages() {
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+  state.messages.forEach(msg => {
+    const div = document.createElement('div');
+    div.className = `message ${msg.role}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.innerHTML = formatText(msg.content);
+    const time = document.createElement('div');
+    time.className = 'msg-time';
+    time.textContent = msg.time || '';
+    div.appendChild(bubble);
+    div.appendChild(time);
+    container.appendChild(div);
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+function formatText(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
+function showTyping() {
+  const container = document.getElementById('messages');
+  const existing = document.getElementById('typing-indicator');
+  if (existing) return;
+  const div = document.createElement('div');
+  div.className = 'message assistant';
+  div.id = 'typing-indicator';
+  div.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+// ============ AI CALL ============
+async function callClaude(userMessage, systemExtra = '') {
+  const apiKey = state.settings.apiKey;
+  if (!apiKey) {
+    showToast('⚠️ Configure sua API Key nas configurações!');
+    return null;
+  }
+
+  const name = state.settings.userName || 'você';
+  const taskList = state.tasks.filter(t => !t.done).map(t => `- ${t.text}`).join('\n') || 'nenhuma tarefa ainda';
+
+  const system = `Você é o Nexo, assistente pessoal casual e amigo do ${name}. Você ajuda pessoas com TDAH a se organizar e focar.
+
+Seu estilo: português brasileiro casual, direto, amigo, encorajador mas sem ser chato. Frases curtas. Sem formalidade.
+
+Tarefas pendentes do ${name} hoje:
+${taskList}
+
+${systemExtra}
+
+Quando o usuário mencionar algo que precisa fazer, SEMPRE ao final da sua resposta inclua uma linha assim:
+[TAREFA: descrição curta da tarefa]
+
+Se o usuário parece travado ou mal, seja acolhedor e ajude a desbloquear com uma ação pequena.
+Máximo 3-4 frases por resposta.`;
+
+  const messages = state.messages
+    .filter(m => m.role !== 'system')
+    .slice(-10)
+    .map(m => ({ role: m.role, content: m.content.replace(/\[TAREFA:.*?\]/g, '').trim() }));
+
+  messages.push({ role: 'user', content: userMessage });
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1000,
+        system,
+        messages
+      })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const text = data.content?.map(b => b.text || '').join('');
+
+    // Extract task if present
+    const taskMatch = text.match(/\[TAREFA:\s*(.+?)\]/);
+    if (taskMatch) {
+      addTask(taskMatch[1].trim());
+    }
+
+    return text.replace(/\[TAREFA:.*?\]/g, '').trim();
+  } catch (err) {
+    console.error(err);
+    return `Opa, deu um erro aqui 😅 — ${err.message}`;
+  }
+}
+
+// ============ SEND MESSAGE ============
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || state.isTyping) return;
+
+  input.value = '';
+  autoResize(input);
+  addMessage('user', text);
+  state.isTyping = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  showTyping();
+
+  const response = await callClaude(text);
+  hideTyping();
+  state.isTyping = false;
+  document.getElementById('sendBtn').disabled = false;
+
+  if (response) {
+    addMessage('assistant', response);
+    sendNotification('Nexo', response.slice(0, 80) + '...');
+  }
+
+  renderTasks();
+  updateStats();
+}
+
+// ============ TASKS ============
+function addTask(text) {
+  const task = {
+    id: Date.now(),
+    text,
+    done: false,
+    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  };
+  state.tasks.push(task);
+  saveToStorage();
+  renderTasks();
+  updateStats();
+}
+
+function toggleTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (task) {
+    task.done = !task.done;
+    saveToStorage();
+    renderTasks();
+    updateStats();
+
+    if (task.done) {
+      addMessage('assistant', `Aí sim! ✅ Marcou "${task.text}" como feito. Boa demais!`);
+    }
+  }
+}
+
+function deleteTask(id) {
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  saveToStorage();
+  renderTasks();
+  updateStats();
+}
+
+function renderTasks() {
+  const container = document.getElementById('tasks-list');
+  if (!container) return;
+
+  if (state.tasks.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">📝</div>
+        <p>Nenhuma tarefa ainda.<br>Conta pro Nexo o que você tá fazendo e ele registra automaticamente!</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  [...state.tasks].reverse().forEach(task => {
+    const div = document.createElement('div');
+    div.className = 'task-card';
+    div.innerHTML = `
+      <button class="task-check ${task.done ? 'done' : ''}" onclick="toggleTask(${task.id})">
+        ${task.done ? '✓' : ''}
+      </button>
+      <div class="task-content">
+        <div class="task-text ${task.done ? 'done' : ''}">${task.text}</div>
+        <div class="task-meta">
+          <span class="task-time">${task.time}</span>
+          <span class="task-badge ${task.done ? 'badge-done' : 'badge-pending'}">${task.done ? 'feito' : 'pendente'}</span>
+        </div>
+      </div>
+      <button class="task-delete" onclick="deleteTask(${task.id})">🗑</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// ============ STATS ============
+function updateStats() {
+  const total = state.tasks.length;
+  const done = state.tasks.filter(t => t.done).length;
+  const msgs = state.messages.filter(m => m.role === 'user').length;
+
+  const el1 = document.getElementById('stat-tasks');
+  const el2 = document.getElementById('stat-done');
+  const el3 = document.getElementById('stat-msgs');
+  if (el1) el1.textContent = total;
+  if (el2) el2.textContent = done;
+  if (el3) el3.textContent = msgs;
+}
+
+// ============ SUMMARY ============
+async function generateSummary() {
+  const btn = document.getElementById('summaryBtn');
+  const box = document.getElementById('ai-summary');
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+
+  const total = state.tasks.length;
+  const done = state.tasks.filter(t => t.done).length;
+  const pending = state.tasks.filter(t => !t.done).map(t => t.text).join(', ');
+
+  const prompt = `Faça um resumo motivador do meu dia até agora:
+- ${total} tarefas registradas, ${done} concluídas
+- Pendentes: ${pending || 'nenhuma'}
+- Tive ${state.messages.filter(m => m.role === 'user').length} conversas contigo hoje
+
+Seja breve, honesto e animador. Máximo 4-5 frases.`;
+
+  const summary = await callClaude(prompt, 'Agora você está gerando um resumo do dia, seja motivador e breve.');
+
+  btn.disabled = false;
+  btn.innerHTML = '✨ Gerar resumo do dia com IA';
+
+  if (summary) {
+    box.style.display = 'block';
+    box.textContent = summary;
+  }
+}
+
+// ============ CHECK-IN AUTOMÁTICO ============
+function scheduleCheckIn() {
+  if (state.checkInTimer) clearInterval(state.checkInTimer);
+  const interval = (state.settings.interval || 60) * 60 * 1000;
+
+  state.checkInTimer = setInterval(async () => {
+    if (document.hidden) return; // só checa se app tiver aberto
+
+    const name = state.settings.userName || 'você';
+    const hour = new Date().getHours();
+    let checkIn;
+
+    if (hour < 12) checkIn = `Oi ${name}! ☀️ Como tá a manhã? O que você tá fazendo agora?`;
+    else if (hour < 18) checkIn = `E aí ${name}! 🌤️ Já é tarde, como tão as coisas?`;
+    else checkIn = `Boa noite ${name}! 🌙 Como foi o dia? Terminou tudo que queria?`;
+
+    addMessage('assistant', checkIn);
+    sendNotification('Nexo', checkIn);
+  }, interval);
+}
+
+// ============ NOTIFICATIONS ============
+function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    showToast('❌ Seu navegador não suporta notificações');
+    return;
+  }
+
+  Notification.requestPermission().then(permission => {
+    updateNotifStatus();
+    if (permission === 'granted') {
+      showToast('✅ Notificações ativadas!');
+      new Notification('Nexo ativado! 🧠', {
+        body: 'Vou te mandar check-ins pra te manter focado.',
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🧠</text></svg>'
+      });
+    } else {
+      showToast('⚠️ Notificações bloqueadas no navegador');
+    }
+  });
+}
+
+function sendNotification(title, body) {
+  if (Notification.permission === 'granted' && document.hidden) {
+    new Notification(title, {
+      body,
+      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🧠</text></svg>'
+    });
+  }
+}
+
+function updateNotifStatus() {
+  const el = document.getElementById('notif-status');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'Não suportado neste navegador';
+  } else if (Notification.permission === 'granted') {
+    el.textContent = '✅ Ativadas';
+  } else if (Notification.permission === 'denied') {
+    el.textContent = '❌ Bloqueadas — habilite nas config do navegador';
+  } else {
+    el.textContent = 'Clique para ativar';
+  }
+}
+
+// ============ SETTINGS ============
+function saveSettings() {
+  state.settings.apiKey = document.getElementById('apiKey').value.trim();
+  state.settings.interval = parseInt(document.getElementById('interval').value);
+  state.settings.userName = document.getElementById('userName').value.trim() || 'você';
+  saveToStorage();
+  scheduleCheckIn();
+  showToast('✅ Configurações salvas!');
+}
+
+// ============ UI HELPERS ============
+function switchTab(tab) {
+  ['chat', 'tasks', 'summary', 'settings'].forEach(t => {
+    const tabEl = document.getElementById(`tab-${t}`);
+    const section = document.getElementById(`section-${t}`);
+    if (tabEl) tabEl.classList.toggle('active', t === tab);
+    if (section) {
+      if (t === 'chat') {
+        section.classList.toggle('active', t === tab);
+      } else {
+        section.classList.toggle('active', t === tab);
+      }
+    }
+  });
+
+  if (tab === 'summary') updateStats();
+  if (tab === 'tasks') renderTasks();
+}
+
+function handleEnter(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ============ START ============
+init();
+</script>
+</body>
+</html>
