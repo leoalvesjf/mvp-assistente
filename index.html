@@ -891,44 +891,126 @@ let state = {
 
 // ============ INIT ============
 function init() {
-  loadFromStorage();
+  loadSettings();
   renderMessages();
   renderTasks();
   updateStats();
 
-  if (state.messages.length === 0) {
-    const name = state.settings.userName || 'você';
-    setTimeout(() => {
-      addMessage('assistant', `Oi ${name}! 👋 Eu sou o **Nexo**, seu parceiro de foco. Tô aqui pra te ajudar a organizar o dia, não deixar você se perder nas ideias, e te dar uma força quando travar.\n\nMe conta: o que você tá fazendo agora?`);
-    }, 600);
-  }
+  loadFromDB().then(() => {
+    renderMessages();
+    renderTasks();
+    updateStats();
+    if (state.messages.length === 0) {
+      const name = state.settings.userName || 'você';
+      setTimeout(() => {
+        addMessage('assistant', `Oi ${name}! 👋 Eu sou o **Nexo**, seu parceiro de foco. Tô aqui pra te ajudar a organizar o dia, não deixar você se perder nas ideias, e te dar uma força quando travar.\n\nMe conta: o que você tá fazendo agora?`);
+      }, 600);
+    }
+  });
 
   scheduleCheckIn();
   updateNotifStatus();
 }
 
-// ============ STORAGE ============
-function saveToStorage() {
-  try {
-    localStorage.setItem('nexo_messages', JSON.stringify(state.messages.slice(-50)));
-    localStorage.setItem('nexo_tasks', JSON.stringify(state.tasks));
-    localStorage.setItem('nexo_settings', JSON.stringify(state.settings));
-  } catch(e) {}
+// ============ SUPABASE ============
+const SUPABASE_URL = 'https://cxhjypywqxxxhvgdvfdo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_4M6CTKtDO-hJA4nNRt8akg_vD9quY1R';
+
+async function sbFetch(path, options = {}) {
+  const prefer = options.prefer || '';
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method: options.method || 'GET',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      ...(prefer ? { 'Prefer': prefer } : {})
+    },
+    ...(options.body ? { body: options.body } : {})
+  });
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-function loadFromStorage() {
+async function loadFromDB() {
   try {
-    const msgs = localStorage.getItem('nexo_messages');
-    const tasks = localStorage.getItem('nexo_tasks');
-    const settings = localStorage.getItem('nexo_settings');
-    if (msgs) state.messages = JSON.parse(msgs);
-    if (tasks) state.tasks = JSON.parse(tasks);
-    if (settings) state.settings = { ...state.settings, ...JSON.parse(settings) };
+    const [msgs, tasks] = await Promise.all([
+      sbFetch('conversations?order=created_at.asc&limit=100'),
+      sbFetch('tasks?order=created_at.asc')
+    ]);
+    if (msgs?.length) {
+      state.messages = msgs.map(m => ({
+        role: m.role,
+        content: m.content,
+        time: new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      }));
+    }
+    if (tasks?.length) {
+      state.tasks = tasks.map(t => ({
+        id: t.id,
+        dbId: t.id,
+        text: t.text,
+        done: t.done,
+        time: new Date(t.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      }));
+    }
+  } catch(e) {
+    console.warn('Erro ao carregar do banco:', e);
+    showToast('⚠️ Erro ao conectar com banco');
+  }
+}
 
-    // Populate settings UI
+async function saveMessageToDB(role, content) {
+  try {
+    await sbFetch('conversations', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ role, content })
+    });
+  } catch(e) { console.warn('Erro ao salvar msg:', e); }
+}
+
+async function saveTaskToDB(text) {
+  try {
+    const res = await sbFetch('tasks', {
+      method: 'POST',
+      prefer: 'return=representation',
+      body: JSON.stringify({ text, done: false })
+    });
+    return res?.[0]?.id;
+  } catch(e) { console.warn('Erro ao salvar tarefa:', e); }
+}
+
+async function updateTaskInDB(dbId, done) {
+  try {
+    await sbFetch(`tasks?id=eq.${dbId}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ done })
+    });
+  } catch(e) { console.warn('Erro ao atualizar tarefa:', e); }
+}
+
+async function deleteTaskFromDB(dbId) {
+  try {
+    await sbFetch(`tasks?id=eq.${dbId}`, { method: 'DELETE' });
+  } catch(e) { console.warn('Erro ao deletar tarefa:', e); }
+}
+
+// ============ SETTINGS (só local) ============
+function loadSettings() {
+  try {
+    const s = localStorage.getItem('nexo_settings');
+    if (s) state.settings = { ...state.settings, ...JSON.parse(s) };
     document.getElementById('apiKey').value = state.settings.apiKey || '';
     document.getElementById('interval').value = state.settings.interval || 60;
     document.getElementById('userName').value = state.settings.userName || '';
+  } catch(e) {}
+}
+
+function persistSettings() {
+  try {
+    localStorage.setItem('nexo_settings', JSON.stringify(state.settings));
   } catch(e) {}
 }
 
@@ -937,7 +1019,7 @@ function addMessage(role, content, save = true) {
   const msg = { role, content, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) };
   state.messages.push(msg);
   renderMessages();
-  if (save) saveToStorage();
+  if (save) saveMessageToDB(role, content);
   return msg;
 }
 
@@ -969,8 +1051,7 @@ function formatText(text) {
 
 function showTyping() {
   const container = document.getElementById('messages');
-  const existing = document.getElementById('typing-indicator');
-  if (existing) return;
+  if (document.getElementById('typing-indicator')) return;
   const div = document.createElement('div');
   div.className = 'message assistant';
   div.id = 'typing-indicator';
@@ -995,20 +1076,22 @@ async function callClaude(userMessage, systemExtra = '') {
   const name = state.settings.userName || 'você';
   const taskList = state.tasks.filter(t => !t.done).map(t => `- ${t.text}`).join('\n') || 'nenhuma tarefa ainda';
 
-  const system = `Você é o Nexo, assistente pessoal casual e amigo do ${name}. Você ajuda pessoas com TDAH a se organizar e focar.
+  const system = `Você é o Nexo, assistente pessoal e amigo do ${name}. Você ajuda pessoas com TDAH a se organizar e focar.
 
 Seu estilo: português brasileiro casual, direto, amigo, encorajador mas sem ser chato. Frases curtas. Sem formalidade.
 
-Tarefas pendentes do ${name} hoje:
+IMPORTANTE: Você salva as conversas e tarefas em um banco de dados real (Supabase). Isso significa que ${name} pode fechar o app e voltar depois — tudo vai estar lá. Você TEM memória persistente!
+
+Tarefas pendentes do ${name}:
 ${taskList}
 
 ${systemExtra}
 
-Quando o usuário mencionar algo que precisa fazer, SEMPRE ao final da sua resposta inclua uma linha assim:
-[TAREFA: descrição curta da tarefa]
+Quando o usuário mencionar algo que precisa fazer, SEMPRE ao final inclua:
+[TAREFA: descrição curta]
 
-Se o usuário parece travado ou mal, seja acolhedor e ajude a desbloquear com uma ação pequena.
-Máximo 3-4 frases por resposta.`;
+Se o usuário parece travado ou mal, seja acolhedor e ajude com uma ação pequena.
+Máximo 3-4 frases.`;
 
   const messages = state.messages
     .filter(m => m.role !== 'system')
@@ -1021,24 +1104,13 @@ Máximo 3-4 frases por resposta.`;
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system,
-        messages,
-        apiKey: state.settings.apiKey
-      })
+      body: JSON.stringify({ system, messages, apiKey })
     });
-
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
-
     const text = data.content?.map(b => b.text || '').join('');
-
-    // Extract task if present
     const taskMatch = text.match(/\[TAREFA:\s*(.+?)\]/);
-    if (taskMatch) {
-      addTask(taskMatch[1].trim());
-    }
-
+    if (taskMatch) addTask(taskMatch[1].trim());
     return text.replace(/\[TAREFA:.*?\]/g, '').trim();
   } catch (err) {
     console.error(err);
@@ -1051,68 +1123,63 @@ async function sendMessage() {
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if (!text || state.isTyping) return;
-
   input.value = '';
   autoResize(input);
   addMessage('user', text);
   state.isTyping = true;
   document.getElementById('sendBtn').disabled = true;
-
   showTyping();
-
   const response = await callClaude(text);
   hideTyping();
   state.isTyping = false;
   document.getElementById('sendBtn').disabled = false;
-
   if (response) {
     addMessage('assistant', response);
     sendNotification('Nexo', response.slice(0, 80) + '...');
   }
-
   renderTasks();
   updateStats();
 }
 
 // ============ TASKS ============
-function addTask(text) {
+async function addTask(text) {
+  const tmpId = Date.now();
   const task = {
-    id: Date.now(),
+    id: tmpId,
+    dbId: null,
     text,
     done: false,
     time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   };
   state.tasks.push(task);
-  saveToStorage();
   renderTasks();
   updateStats();
+  const dbId = await saveTaskToDB(text);
+  if (dbId) task.dbId = dbId;
 }
 
-function toggleTask(id) {
+async function toggleTask(id) {
   const task = state.tasks.find(t => t.id === id);
   if (task) {
     task.done = !task.done;
-    saveToStorage();
     renderTasks();
     updateStats();
-
-    if (task.done) {
-      addMessage('assistant', `Aí sim! ✅ Marcou "${task.text}" como feito. Boa demais!`);
-    }
+    if (task.dbId) await updateTaskInDB(task.dbId, task.done);
+    if (task.done) addMessage('assistant', `Aí sim! ✅ Marcou "${task.text}" como feito. Boa demais!`);
   }
 }
 
-function deleteTask(id) {
+async function deleteTask(id) {
+  const task = state.tasks.find(t => t.id === id);
   state.tasks = state.tasks.filter(t => t.id !== id);
-  saveToStorage();
   renderTasks();
   updateStats();
+  if (task?.dbId) await deleteTaskFromDB(task.dbId);
 }
 
 function renderTasks() {
   const container = document.getElementById('tasks-list');
   if (!container) return;
-
   if (state.tasks.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
@@ -1121,7 +1188,6 @@ function renderTasks() {
       </div>`;
     return;
   }
-
   container.innerHTML = '';
   [...state.tasks].reverse().forEach(task => {
     const div = document.createElement('div');
@@ -1148,7 +1214,6 @@ function updateStats() {
   const total = state.tasks.length;
   const done = state.tasks.filter(t => t.done).length;
   const msgs = state.messages.filter(m => m.role === 'user').length;
-
   const el1 = document.getElementById('stat-tasks');
   const el2 = document.getElementById('stat-done');
   const el3 = document.getElementById('stat-msgs');
@@ -1161,48 +1226,37 @@ function updateStats() {
 async function generateSummary() {
   const btn = document.getElementById('summaryBtn');
   const box = document.getElementById('ai-summary');
-
   btn.disabled = true;
   btn.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
-
   const total = state.tasks.length;
   const done = state.tasks.filter(t => t.done).length;
   const pending = state.tasks.filter(t => !t.done).map(t => t.text).join(', ');
-
   const prompt = `Faça um resumo motivador do meu dia até agora:
 - ${total} tarefas registradas, ${done} concluídas
 - Pendentes: ${pending || 'nenhuma'}
-- Tive ${state.messages.filter(m => m.role === 'user').length} conversas contigo hoje
-
+- Tive ${state.messages.filter(m => m.role === 'user').length} trocas contigo hoje
 Seja breve, honesto e animador. Máximo 4-5 frases.`;
-
   const summary = await callClaude(prompt, 'Agora você está gerando um resumo do dia, seja motivador e breve.');
-
   btn.disabled = false;
   btn.innerHTML = '✨ Gerar resumo do dia com IA';
-
   if (summary) {
     box.style.display = 'block';
     box.textContent = summary;
   }
 }
 
-// ============ CHECK-IN AUTOMÁTICO ============
+// ============ CHECK-IN ============
 function scheduleCheckIn() {
   if (state.checkInTimer) clearInterval(state.checkInTimer);
   const interval = (state.settings.interval || 60) * 60 * 1000;
-
   state.checkInTimer = setInterval(async () => {
-    if (document.hidden) return; // só checa se app tiver aberto
-
+    if (document.hidden) return;
     const name = state.settings.userName || 'você';
     const hour = new Date().getHours();
     let checkIn;
-
     if (hour < 12) checkIn = `Oi ${name}! ☀️ Como tá a manhã? O que você tá fazendo agora?`;
     else if (hour < 18) checkIn = `E aí ${name}! 🌤️ Já é tarde, como tão as coisas?`;
     else checkIn = `Boa noite ${name}! 🌙 Como foi o dia? Terminou tudo que queria?`;
-
     addMessage('assistant', checkIn);
     sendNotification('Nexo', checkIn);
   }, interval);
@@ -1210,46 +1264,29 @@ function scheduleCheckIn() {
 
 // ============ NOTIFICATIONS ============
 function requestNotificationPermission() {
-  if (!('Notification' in window)) {
-    showToast('❌ Seu navegador não suporta notificações');
-    return;
-  }
-
-  Notification.requestPermission().then(permission => {
+  if (!('Notification' in window)) { showToast('❌ Navegador não suporta notificações'); return; }
+  Notification.requestPermission().then(p => {
     updateNotifStatus();
-    if (permission === 'granted') {
+    if (p === 'granted') {
       showToast('✅ Notificações ativadas!');
-      new Notification('Nexo ativado! 🧠', {
-        body: 'Vou te mandar check-ins pra te manter focado.',
-        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🧠</text></svg>'
-      });
-    } else {
-      showToast('⚠️ Notificações bloqueadas no navegador');
-    }
+      new Notification('Nexo ativado! 🧠', { body: 'Vou te mandar check-ins pra te manter focado.' });
+    } else showToast('⚠️ Notificações bloqueadas');
   });
 }
 
 function sendNotification(title, body) {
   if (Notification.permission === 'granted' && document.hidden) {
-    new Notification(title, {
-      body,
-      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🧠</text></svg>'
-    });
+    new Notification(title, { body });
   }
 }
 
 function updateNotifStatus() {
   const el = document.getElementById('notif-status');
   if (!el) return;
-  if (!('Notification' in window)) {
-    el.textContent = 'Não suportado neste navegador';
-  } else if (Notification.permission === 'granted') {
-    el.textContent = '✅ Ativadas';
-  } else if (Notification.permission === 'denied') {
-    el.textContent = '❌ Bloqueadas — habilite nas config do navegador';
-  } else {
-    el.textContent = 'Clique para ativar';
-  }
+  if (!('Notification' in window)) el.textContent = 'Não suportado';
+  else if (Notification.permission === 'granted') el.textContent = '✅ Ativadas';
+  else if (Notification.permission === 'denied') el.textContent = '❌ Bloqueadas no navegador';
+  else el.textContent = 'Clique para ativar';
 }
 
 // ============ SETTINGS ============
@@ -1257,7 +1294,7 @@ function saveSettings() {
   state.settings.apiKey = document.getElementById('apiKey').value.trim();
   state.settings.interval = parseInt(document.getElementById('interval').value);
   state.settings.userName = document.getElementById('userName').value.trim() || 'você';
-  saveToStorage();
+  persistSettings();
   scheduleCheckIn();
   showToast('✅ Configurações salvas!');
 }
@@ -1265,27 +1302,15 @@ function saveSettings() {
 // ============ UI HELPERS ============
 function switchTab(tab) {
   ['chat', 'tasks', 'summary', 'settings'].forEach(t => {
-    const tabEl = document.getElementById(`tab-${t}`);
-    const section = document.getElementById(`section-${t}`);
-    if (tabEl) tabEl.classList.toggle('active', t === tab);
-    if (section) {
-      if (t === 'chat') {
-        section.classList.toggle('active', t === tab);
-      } else {
-        section.classList.toggle('active', t === tab);
-      }
-    }
+    document.getElementById(`tab-${t}`)?.classList.toggle('active', t === tab);
+    document.getElementById(`section-${t}`)?.classList.toggle('active', t === tab);
   });
-
   if (tab === 'summary') updateStats();
   if (tab === 'tasks') renderTasks();
 }
 
 function handleEnter(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 }
 
 function autoResize(el) {
