@@ -1,0 +1,13 @@
+{
+  "appId": "com.leoalvesjf.nexo",
+  "appName": "Nexo",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
