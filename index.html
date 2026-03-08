@@ -63,8 +63,9 @@
       max-width: 480px;
       margin: 0 auto;
       padding: 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
       min-height: 100vh;
-      min-height: -webkit-fill-available;
+      min-height: 100dvh;
     }
 
     /* Header */
@@ -199,7 +200,7 @@
     .chat-container {
       display: flex;
       flex-direction: column;
-      height: calc(100dvh - 120px);
+      height: calc(100dvh - 120px - env(safe-area-inset-bottom, 0px));
     }
 
     .messages {
@@ -678,14 +679,17 @@
       left: -280px;
       width: 260px;
       height: 100%;
+      height: 100dvh;
       background: var(--surface);
       border-right: 1px solid var(--border);
       z-index: 201;
       transition: left 0.3s ease;
-      padding: 48px 16px 32px;
+      padding: 48px 16px calc(32px + env(safe-area-inset-bottom, 16px));
+      padding-top: calc(48px + env(safe-area-inset-top, 0px));
       display: flex;
       flex-direction: column;
       gap: 8px;
+      overflow-y: auto;
     }
     .sidebar.open { left: 0; }
 
@@ -741,7 +745,12 @@
 
     /* Hidden sections */
     .section { display: none; }
-    .section.active { display: block; }
+    .section.active {
+      display: block;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom, 16px));
+      min-height: calc(100dvh - 80px);
+      overflow-y: auto;
+    }
     .chat-container { display: none; }
     .chat-container.active { display: flex; }
   </style>
@@ -1000,7 +1009,7 @@ let state = {
 };
 
 // ============ OTA UPDATE ============
-const APP_VERSION = '1.3.5';
+const APP_VERSION = '1.3.6';
 const VERSION_URL = 'https://mvp-assistente.vercel.app/version.json';
 const UPDATE_URL  = 'https://mvp-assistente.vercel.app/index.html';
 
@@ -1710,3 +1719,4 @@ init();
 </script>
 </body>
 </html>
+
