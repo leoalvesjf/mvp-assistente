@@ -1003,6 +1003,13 @@ const UPDATE_URL  = 'https://mvp-assistente.vercel.app/index.html';
 
 async function checkForUpdate() {
   if (!isNative()) return;
+  // Evita loop: se acabou de atualizar, não checa de novo
+  const justUpdated = localStorage.getItem('nexo_just_updated');
+  if (justUpdated) {
+    localStorage.removeItem('nexo_just_updated');
+    showToast('✅ App atualizado para v' + APP_VERSION + '!');
+    return;
+  }
   try {
     const res = await fetch(VERSION_URL + '?t=' + Date.now());
     const data = await res.json();
@@ -1012,7 +1019,7 @@ async function checkForUpdate() {
         try {
           const html = await fetch(UPDATE_URL + '?t=' + Date.now());
           const text = await html.text();
-          localStorage.setItem('nexo_ota_html', text);
+          localStorage.setItem('nexo_just_updated', '1'); // flag anti-loop
           localStorage.setItem('nexo_ota_version', data.version);
           showToast('✅ Atualizado! Reiniciando...');
           setTimeout(() => window.location.reload(), 1500);
