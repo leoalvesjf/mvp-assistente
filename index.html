@@ -890,7 +890,7 @@
               <div class="setting-desc" id="notif-status">Clique para ativar</div>
             </div>
             <div class="setting-control">
-              <button class="save-btn" style="margin:0;min-width:100px;padding:8px 12px;font-size:12px" onclick="requestNotificationPermission()">Ativar</button>
+              <button class="save-btn" id="notif-btn" style="margin:0;min-width:100px;padding:8px 12px;font-size:12px" onclick="toggleNotifications()">Ativar</button>
             </div>
           </div>
           <div class="setting-item">
@@ -997,34 +997,42 @@ let state = {
 };
 
 // ============ OTA UPDATE ============
-const APP_VERSION = '1.3.3';
+const APP_VERSION = '1.3.4';
 const VERSION_URL = 'https://mvp-assistente.vercel.app/version.json';
 const UPDATE_URL  = 'https://mvp-assistente.vercel.app/index.html';
 
 async function checkForUpdate() {
   if (!isNative()) return;
-  // Evita loop: se acabou de atualizar, não checa de novo
+
+  // Cooldown: só checa 1x a cada 5 minutos
+  const lastCheck = parseInt(localStorage.getItem('nexo_last_update_check') || '0');
+  const now = Date.now();
+  if (now - lastCheck < 5 * 60 * 1000) return;
+  localStorage.setItem('nexo_last_update_check', String(now));
+
+  // Se acabou de atualizar, só mostra toast e para
   const justUpdated = localStorage.getItem('nexo_just_updated');
   if (justUpdated) {
     localStorage.removeItem('nexo_just_updated');
-    showToast('✅ App atualizado para v' + APP_VERSION + '!');
+    showToast('App atualizado para v' + APP_VERSION + '!');
     return;
   }
+
   try {
-    const res = await fetch(VERSION_URL + '?t=' + Date.now());
+    const res = await fetch(VERSION_URL + '?t=' + now);
     const data = await res.json();
     if (data.version && data.version !== APP_VERSION) {
-      showToast('🔄 Nova versão disponível! Baixando...');
-      setTimeout(async () => {
-        try {
-          const html = await fetch(UPDATE_URL + '?t=' + Date.now());
-          const text = await html.text();
-          localStorage.setItem('nexo_just_updated', '1'); // flag anti-loop
-          localStorage.setItem('nexo_ota_version', data.version);
-          showToast('✅ Atualizado! Reiniciando...');
-          setTimeout(() => window.location.reload(), 1500);
-        } catch(e) { console.warn('Erro ao baixar update:', e); }
-      }, 1000);
+      showToast('Nova versao disponivel! Baixando...');
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        const html = await fetch(UPDATE_URL + '?t=' + now);
+        const text = await html.text();
+        // Salva flag ANTES de recarregar
+        localStorage.setItem('nexo_just_updated', '1');
+        localStorage.setItem('nexo_last_update_check', '0'); // reseta cooldown
+        showToast('Atualizado! Reiniciando...');
+        setTimeout(() => window.location.reload(), 1500);
+      } catch(e) { console.warn('Erro ao baixar update:', e); }
     }
   } catch(e) { console.warn('Erro ao checar update:', e); }
 }
@@ -1590,12 +1598,55 @@ async function sendNotification(title, body) {
 
 function updateNotifStatus() {
   const el = document.getElementById('notif-status');
+  const btn = document.getElementById('notif-btn');
+  const granted = isNative() ? notifGranted : (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+
   if (!el) return;
-  if (isNative()) { el.textContent = notifGranted ? '✅ Ativadas' : 'Clique para ativar'; }
-  else if (!('Notification' in window)) { el.textContent = 'Não suportado'; }
-  else if (Notification.permission === 'granted') { el.textContent = '✅ Ativadas'; }
-  else if (Notification.permission === 'denied') { el.textContent = '❌ Bloqueadas no navegador'; }
-  else { el.textContent = 'Clique para ativar'; }
+  if (!('Notification' in window) && !isNative()) {
+    el.textContent = 'Não suportado';
+    if (btn) { btn.textContent = 'Ativar'; btn.style.opacity = '0.5'; }
+    return;
+  }
+  if (granted) {
+    el.textContent = '✅ Ativadas';
+    if (btn) {
+      btn.textContent = 'Desativar';
+      btn.style.background = 'rgba(247,106,106,0.15)';
+      btn.style.color = 'var(--danger)';
+      btn.style.border = '1px solid var(--danger)';
+    }
+  } else if (!isNative() && Notification.permission === 'denied') {
+    el.textContent = '❌ Bloqueadas';
+    if (btn) { btn.textContent = 'Bloqueado'; btn.style.opacity = '0.5'; }
+  } else {
+    el.textContent = 'Clique para ativar';
+    if (btn) {
+      btn.textContent = 'Ativar';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.border = '';
+      btn.style.opacity = '';
+    }
+  }
+}
+
+async function toggleNotifications() {
+  if (notifGranted || (!isNative() && typeof Notification !== 'undefined' && Notification.permission === 'granted')) {
+    // Desativar — cancela notificações agendadas
+    if (isNative()) {
+      try {
+        const { LocalNotifications } = window.Capacitor.Plugins;
+        await LocalNotifications.cancel({
+          notifications: Array.from({length: 20}, (_, i) => ({ id: 100 + i }))
+        });
+      } catch(e) {}
+    }
+    notifGranted = false;
+    showToast('🔕 Notificações desativadas');
+    updateNotifStatus();
+  } else {
+    requestNotificationPermission();
+  }
 }
 
 // ============ SETTINGS ============
