@@ -1020,44 +1020,48 @@ let state = {
 };
 
 // ============ OTA UPDATE ============
-const APP_VERSION = '1.3.14';
+const APP_VERSION = '1.3.15';
 const VERSION_URL = 'https://mvp-assistente.vercel.app/version.json';
 const UPDATE_URL  = 'https://mvp-assistente.vercel.app/index.html';
 
 async function checkForUpdate() {
   if (!isNative()) return;
 
-  // Cooldown: só checa 1x a cada 5 minutos
   const lastCheck = parseInt(localStorage.getItem('nexo_last_update_check') || '0');
   const now = Date.now();
   if (now - lastCheck < 5 * 60 * 1000) return;
   localStorage.setItem('nexo_last_update_check', String(now));
 
-  // Se acabou de atualizar, só mostra toast e para
-  const justUpdated = localStorage.getItem('nexo_just_updated');
-  if (justUpdated) {
+  if (localStorage.getItem('nexo_just_updated')) {
     localStorage.removeItem('nexo_just_updated');
     showToast('App atualizado para v' + APP_VERSION + '!');
     return;
   }
 
   try {
+    console.log('OTA_AUTO: checando versao...');
     const res = await fetch(VERSION_URL + '?t=' + now);
     const data = await res.json();
+    console.log('OTA_AUTO: remota=' + data.version + ' local=' + APP_VERSION);
     if (data.version && data.version !== APP_VERSION) {
-      showToast('Nova versao disponivel! Baixando...');
-      await new Promise(r => setTimeout(r, 1000));
-      try {
-        const html = await fetch(UPDATE_URL + '?t=' + now);
-        const text = await html.text();
-        // Salva flag ANTES de recarregar
-        localStorage.setItem('nexo_just_updated', '1');
-        localStorage.setItem('nexo_last_update_check', '0'); // reseta cooldown
-        showToast('Atualizado! Reiniciando...');
-        setTimeout(() => window.location.reload(), 1500);
-      } catch(e) { console.warn('Erro ao baixar update:', e); }
+      await downloadAndApplyUpdate(data.version);
     }
-  } catch(e) { console.warn('Erro ao checar update:', e); }
+  } catch(e) { console.warn('OTA_AUTO erro:', e.message); }
+}
+
+async function downloadAndApplyUpdate(newVersion) {
+  try {
+    const { CapacitorUpdater } = window.Capacitor.Plugins;
+    console.log('OTA: iniciando download via Capgo v' + newVersion);
+    showToast('Nova versao ' + newVersion + '! Baixando...');
+    const bundle = await CapacitorUpdater.download({ url: UPDATE_URL, version: newVersion });
+    console.log('OTA: download ok', JSON.stringify(bundle));
+    await CapacitorUpdater.set(bundle);
+  } catch(e) {
+    console.error('OTA Capgo erro:', e.message);
+    localStorage.setItem('nexo_just_updated', '1');
+    window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
+  }
 }
 
 // ============ INIT ============
@@ -1684,24 +1688,36 @@ async function manualCheckUpdate() {
     console.log('OTA_MANUAL: versao remota=' + data.version + ' local=' + APP_VERSION);
 
     if (data.version && data.version !== APP_VERSION) {
-      console.log('OTA_MANUAL: atualizacao disponivel!');
+      console.log('OTA_MANUAL: atualizacao disponivel! v' + data.version);
       showUpdateOverlay('Baixando v' + data.version + '...');
       setUpdateProgress(20, 'Conectando ao servidor...');
       await new Promise(r => setTimeout(r, 400));
 
-      setUpdateProgress(50, 'Baixando atualização...');
-      console.log('OTA_MANUAL: baixando index.html');
-      const html = await fetch(UPDATE_URL + '?t=' + Date.now());
-      
-      setUpdateProgress(80, 'Instalando...');
-      const text = await html.text();
-      console.log('OTA_MANUAL: download ok, tamanho=' + text.length);
-      
-      localStorage.setItem('nexo_just_updated', '1');
-      setUpdateProgress(100, 'Concluído! Reiniciando...');
-      
-      await new Promise(r => setTimeout(r, 1000));
-      window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
+      try {
+        const { CapacitorUpdater } = window.Capacitor.Plugins;
+        setUpdateProgress(40, 'Baixando atualização...');
+        console.log('OTA_MANUAL: download via Capgo');
+
+        const bundle = await CapacitorUpdater.download({
+          url: UPDATE_URL,
+          version: data.version
+        });
+        console.log('OTA_MANUAL: download ok', bundle);
+
+        setUpdateProgress(80, 'Instalando...');
+        await new Promise(r => setTimeout(r, 500));
+        setUpdateProgress(100, 'Concluído! Reiniciando...');
+        await new Promise(r => setTimeout(r, 800));
+
+        await CapacitorUpdater.set(bundle);
+        // set() reinicia automaticamente
+      } catch(capgoErr) {
+        console.warn('OTA_MANUAL: Capgo falhou, usando fallback:', capgoErr.message);
+        setUpdateProgress(100, 'Concluído! Reiniciando...');
+        localStorage.setItem('nexo_just_updated', '1');
+        await new Promise(r => setTimeout(r, 800));
+        window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
+      }
     } else {
       console.log('OTA_MANUAL: ja na versao mais recente');
       status.textContent = 'Você já está na versão mais recente!';
@@ -1799,6 +1815,7 @@ init();
 </script>
 </body>
 </html>
+
 
 
 
