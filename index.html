@@ -994,6 +994,16 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- Update overlay -->
+<div id="update-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,18,0.97);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:24px">
+  <div style="font-size:48px">🧠</div>
+  <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--text)">Atualizando Nexo</div>
+  <div style="width:260px;background:var(--surface2);border-radius:99px;height:6px;overflow:hidden">
+    <div id="update-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:99px;transition:width 0.3s ease"></div>
+  </div>
+  <div id="update-progress-text" style="font-size:13px;color:var(--text-dim)">Baixando...</div>
+</div>
+
 <script>
 // ============ STATE ============
 let state = {
@@ -1010,7 +1020,7 @@ let state = {
 };
 
 // ============ OTA UPDATE ============
-const APP_VERSION = '1.3.12';
+const APP_VERSION = '1.3.13';
 const VERSION_URL = 'https://mvp-assistente.vercel.app/version.json';
 const UPDATE_URL  = 'https://mvp-assistente.vercel.app/index.html';
 
@@ -1645,6 +1655,17 @@ function updateNotifStatus() {
   }
 }
 
+async function showUpdateOverlay(msg) {
+  const overlay = document.getElementById('update-overlay');
+  overlay.style.display = 'flex';
+  document.getElementById('update-progress-text').textContent = msg;
+}
+
+async function setUpdateProgress(pct, msg) {
+  document.getElementById('update-progress-bar').style.width = pct + '%';
+  document.getElementById('update-progress-text').textContent = msg;
+}
+
 async function manualCheckUpdate() {
   const btn = document.getElementById('update-btn');
   const status = document.getElementById('update-status');
@@ -1653,7 +1674,6 @@ async function manualCheckUpdate() {
   status.textContent = '';
 
   try {
-    // Reseta cooldown para forçar verificação
     localStorage.removeItem('nexo_last_update_check');
     localStorage.removeItem('nexo_just_updated');
 
@@ -1661,15 +1681,21 @@ async function manualCheckUpdate() {
     const data = await res.json();
 
     if (data.version && data.version !== APP_VERSION) {
-      status.textContent = 'Nova versão ' + data.version + ' disponível! Baixando...';
-      status.style.color = 'var(--accent3)';
+      showUpdateOverlay('Baixando v' + data.version + '...');
+      setUpdateProgress(20, 'Conectando ao servidor...');
+      await new Promise(r => setTimeout(r, 400));
+
+      setUpdateProgress(50, 'Baixando atualização...');
       const html = await fetch(UPDATE_URL + '?t=' + Date.now());
-      const text = await html.text();
+      
+      setUpdateProgress(80, 'Instalando...');
+      await html.text(); // garante que baixou tudo
+      
       localStorage.setItem('nexo_just_updated', '1');
-      status.textContent = 'Atualizado! Reiniciando...';
-      setTimeout(() => {
-        window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
-      }, 1500);
+      setUpdateProgress(100, 'Concluído! Reiniciando...');
+      
+      await new Promise(r => setTimeout(r, 1000));
+      window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
     } else {
       status.textContent = 'Você já está na versão mais recente!';
       status.style.color = 'var(--success)';
@@ -1677,6 +1703,8 @@ async function manualCheckUpdate() {
       btn.disabled = false;
     }
   } catch(e) {
+    const overlay = document.getElementById('update-overlay');
+    if (overlay) overlay.style.display = 'none';
     status.textContent = 'Erro ao verificar. Tente novamente.';
     status.style.color = 'var(--danger)';
     btn.textContent = 'Verificar atualização';
@@ -1763,7 +1791,6 @@ init();
 </script>
 </body>
 </html>
-
 
 
 
