@@ -661,41 +661,61 @@
     }
 
     /* Nav bar */
-    .nav-bar {
+    /* Sidebar */
+    .sidebar-overlay {
+      display: none;
       position: fixed;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 100%;
-      max-width: 480px;
-      background: rgba(10,10,18,0.95);
-      backdrop-filter: blur(20px);
-      border-top: 1px solid var(--border);
-      display: flex;
-      padding: 8px 0 env(safe-area-inset-bottom, 8px);
-      z-index: 100;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+      backdrop-filter: blur(4px);
     }
+    .sidebar-overlay.open { display: block; }
 
-    .nav-item {
-      flex: 1;
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: -280px;
+      width: 260px;
+      height: 100%;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      z-index: 201;
+      transition: left 0.3s ease;
+      padding: 48px 16px 32px;
       display: flex;
       flex-direction: column;
+      gap: 8px;
+    }
+    .sidebar.open { left: 0; }
+
+    .sidebar-header {
+      display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 8px 4px;
+      gap: 12px;
+      padding: 0 8px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 12px;
       background: none;
       border: none;
       color: var(--text-dim);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
       cursor: pointer;
       transition: all 0.2s;
-      font-family: 'DM Sans', sans-serif;
+      text-align: left;
+      width: 100%;
     }
-
-    .nav-item.active { color: var(--accent); }
-    .nav-item:hover:not(.active) { color: var(--text); }
-
-    .nav-icon { font-size: 20px; }
-    .nav-label { font-size: 10px; font-weight: 500; }
+    .sidebar-item:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-item.active { background: rgba(124,106,247,0.15); color: var(--accent); font-weight: 600; }
 
     /* Loading dots */
     .loading {
@@ -732,6 +752,7 @@
   <!-- Header -->
   <div class="header">
     <div class="header-left">
+      <button class="icon-btn" onclick="openSidebar()" title="Menu" style="font-size:20px;margin-right:8px">☰</button>
       <div class="avatar">🧠</div>
       <div>
         <div class="header-name">Nexo</div>
@@ -740,16 +761,28 @@
     </div>
     <div class="header-actions">
       <button class="icon-btn" onclick="requestNotificationPermission()" title="Ativar notificações">🔔</button>
-      <button class="icon-btn" onclick="switchTab('settings')" title="Configurações">⚙️</button>
     </div>
   </div>
 
-  <!-- Tab bar -->
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('chat')" id="tab-chat">💬 Chat</button>
-    <button class="tab" onclick="switchTab('tasks')" id="tab-tasks">✅ Tarefas</button>
-    <button class="tab" onclick="switchTab('summary')" id="tab-summary">📊 Resumo</button>
-    <button class="tab" onclick="switchTab('settings')" id="tab-settings">⚙️ Config</button>
+  <!-- Sidebar overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="avatar">🧠</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px">Nexo</div>
+    </div>
+    <button class="sidebar-item active" onclick="switchTab('chat')" id="tab-chat">
+      <span>💬</span> Chat
+    </button>
+    <button class="sidebar-item" onclick="switchTab('tasks')" id="tab-tasks">
+      <span>✅</span> Tarefas
+    </button>
+    <button class="sidebar-item" onclick="switchTab('summary')" id="tab-summary">
+      <span>📊</span> Resumo
+    </button>
+    <button class="sidebar-item" onclick="switchTab('settings')" id="tab-settings">
+      <span>⚙️</span> Configurações
+    </button>
   </div>
 
   <!-- CHAT -->
@@ -757,7 +790,7 @@
     <div class="messages" id="messages"></div>
     <div class="chat-input-area">
       <div class="chat-input-row">
-        <textarea class="chat-input" id="chatInput" placeholder="Conta o que você tá fazendo... (Ctrl+Enter envia)" rows="1"
+        <textarea class="chat-input" id="chatInput" placeholder="Conta o que você tá fazendo..." rows="1"
           onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
       </div>
@@ -860,6 +893,74 @@
               <button class="save-btn" style="margin:0;min-width:100px;padding:8px 12px;font-size:12px" onclick="requestNotificationPermission()">Ativar</button>
             </div>
           </div>
+          <div class="setting-item">
+            <div class="setting-icon">🌙</div>
+            <div class="setting-info">
+              <div class="setting-label">Não perturbe</div>
+              <div class="setting-desc">Silenciar notificações fora deste horário</div>
+            </div>
+          </div>
+          <div class="setting-item" style="gap:8px;flex-wrap:wrap">
+            <div class="setting-icon">⏰</div>
+            <div class="setting-info"><div class="setting-label">Das</div></div>
+            <div class="setting-control">
+              <select id="quietStart" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px">
+                <option value="0">00h</option>
+                <option value="1">01h</option>
+                <option value="2">02h</option>
+                <option value="3">03h</option>
+                <option value="4">04h</option>
+                <option value="5">05h</option>
+                <option value="6">06h</option>
+                <option value="7">07h</option>
+                <option value="8">08h</option>
+                <option value="9">09h</option>
+                <option value="10">10h</option>
+                <option value="11">11h</option>
+                <option value="12">12h</option>
+                <option value="13">13h</option>
+                <option value="14">14h</option>
+                <option value="15">15h</option>
+                <option value="16">16h</option>
+                <option value="17">17h</option>
+                <option value="18">18h</option>
+                <option value="19">19h</option>
+                <option value="20">20h</option>
+                <option value="21">21h</option>
+                <option value="22">22h</option>
+                <option value="23">23h</option>
+              </select>
+            </div>
+            <div class="setting-info"><div class="setting-label">às</div></div>
+            <div class="setting-control">
+              <select id="quietEnd" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px">
+                <option value="0">00h</option>
+                <option value="1">01h</option>
+                <option value="2">02h</option>
+                <option value="3">03h</option>
+                <option value="4">04h</option>
+                <option value="5">05h</option>
+                <option value="6">06h</option>
+                <option value="7">07h</option>
+                <option value="8">08h</option>
+                <option value="9">09h</option>
+                <option value="10">10h</option>
+                <option value="11">11h</option>
+                <option value="12">12h</option>
+                <option value="13">13h</option>
+                <option value="14">14h</option>
+                <option value="15">15h</option>
+                <option value="16">16h</option>
+                <option value="17">17h</option>
+                <option value="18">18h</option>
+                <option value="19">19h</option>
+                <option value="20">20h</option>
+                <option value="21">21h</option>
+                <option value="22">22h</option>
+                <option value="23">23h</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -896,7 +997,7 @@ let state = {
 };
 
 // ============ OTA UPDATE ============
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const VERSION_URL = 'https://mvp-assistente.vercel.app/version.json';
 const UPDATE_URL  = 'https://mvp-assistente.vercel.app/index.html';
 
@@ -946,7 +1047,6 @@ function init() {
   checkMidnightReset();
   scheduleCheckIn();
   updateNotifStatus();
-  checkForUpdate();
 }
 
 // ============ SUPABASE ============
@@ -1044,6 +1144,8 @@ function loadSettings() {
     document.getElementById('apiKey').value = state.settings.apiKey || '';
     document.getElementById('interval').value = state.settings.interval || 60;
     document.getElementById('userName').value = state.settings.userName || '';
+    document.getElementById('quietStart').value = state.settings.quietStart ?? 8;
+    document.getElementById('quietEnd').value = state.settings.quietEnd ?? 22;
   } catch(e) {}
 }
 
@@ -1189,7 +1291,13 @@ async function callClaude(userMessage, systemExtra = '', retries = 2) {
     extraContext += await fetchAllTasks();
   }
 
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
   const system = `Você é o Nexo, assistente pessoal e amigo do ${name}. Ajuda pessoas com TDAH a se organizar e focar.
+
+Agora são ${timeStr} de ${dateStr}. Use isso para dar contexto (bom dia, boa tarde, etc) e planejar o dia.
 
 Estilo: português casual, direto, amigo. Frases curtas. Sem formalidade.
 
@@ -1399,8 +1507,9 @@ async function scheduleCheckIn() {
       for (let i = 1; i <= 10; i++) {
         const at = new Date(Date.now() + intervalMs * i);
         const hour = at.getHours();
-        // Só manda entre 8h e 22h
-        if (hour < 8 || hour >= 22) continue;
+        const qStart = state.settings.quietStart ?? 8;
+        const qEnd = state.settings.quietEnd ?? 22;
+        if (hour < qStart || hour >= qEnd) continue;
         let body;
         if (hour < 12) body = `Oi ${name}! ☀️ Como tá a manhã?`;
         else if (hour < 18) body = `E aí ${name}! 🌤️ Como tão as coisas?`;
@@ -1487,6 +1596,8 @@ function saveSettings() {
   state.settings.apiKey = document.getElementById('apiKey').value.trim();
   state.settings.interval = parseInt(document.getElementById('interval').value);
   state.settings.userName = document.getElementById('userName').value.trim() || 'você';
+  state.settings.quietStart = parseInt(document.getElementById('quietStart').value);
+  state.settings.quietEnd = parseInt(document.getElementById('quietEnd').value);
   persistSettings();
   scheduleCheckIn();
   showToast('✅ Configurações salvas!');
@@ -1500,16 +1611,23 @@ function switchTab(tab) {
   });
   if (tab === 'summary') updateStats();
   if (tab === 'tasks') renderTasks();
+  const inputArea = document.querySelector('.chat-input-area');
+  if (inputArea) inputArea.style.display = tab === 'chat' ? '' : 'none';
+  closeSidebar();
+}
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
 function handleEnter(e) {
-  // Ctrl+Enter ou Cmd+Enter envia
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    sendMessage();
-    return;
-  }
-  // Enter simples quebra linha (comportamento padrão do textarea)
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 }
 
 function autoResize(el) {
