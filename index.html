@@ -977,13 +977,14 @@
       </div>
 
       <div style="margin-top: 24px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px;">
-        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:8px;color:var(--accent)">🚀 Deploy na Vercel</div>
-        <div style="font-size:12px;color:var(--text-dim);line-height:1.7">
-          1. Salve este arquivo como <code style="background:var(--surface2);padding:2px 6px;border-radius:4px">index.html</code><br>
-          2. Crie um repo no GitHub<br>
-          3. Conecte o repo na Vercel<br>
-          4. Deploy automático a cada push ✨
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:8px;color:var(--accent)">🔄 Atualização do App</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
+          Versão instalada: <strong style="color:var(--text)" id="cfg-version"></strong>
         </div>
+        <button class="save-btn" onclick="manualCheckUpdate()" id="update-btn" style="width:100%;margin:0">
+          Verificar atualização
+        </button>
+        <div id="update-status" style="font-size:12px;color:var(--text-dim);margin-top:8px;text-align:center"></div>
       </div>
     </div>
   </div>
@@ -1009,16 +1010,12 @@ let state = {
 };
 
 // ============ OTA UPDATE ============
-const APP_VERSION = '1.3.9';
+const APP_VERSION = '1.3.10';
 const VERSION_URL = 'https://mvp-assistente.vercel.app/version.json';
 const UPDATE_URL  = 'https://mvp-assistente.vercel.app/index.html';
 
 async function checkForUpdate() {
-  console.log('OTA_CHECK: isNative=' + isNative() + ' version=' + APP_VERSION);
-  if (!isNative()) {
-    console.log('OTA_CHECK: nao e nativo, saindo');
-    return;
-  }
+  if (!isNative()) return;
 
   // Cooldown: só checa 1x a cada 5 minutos
   const lastCheck = parseInt(localStorage.getItem('nexo_last_update_check') || '0');
@@ -1358,7 +1355,7 @@ Máximo 3-4 frases.`;
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
+          'anthropic-version': '2025-06-01'
         },
         body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, system, messages })
       });
@@ -1648,6 +1645,45 @@ function updateNotifStatus() {
   }
 }
 
+async function manualCheckUpdate() {
+  const btn = document.getElementById('update-btn');
+  const status = document.getElementById('update-status');
+  btn.textContent = 'Verificando...';
+  btn.disabled = true;
+  status.textContent = '';
+
+  try {
+    // Reseta cooldown para forçar verificação
+    localStorage.removeItem('nexo_last_update_check');
+    localStorage.removeItem('nexo_just_updated');
+
+    const res = await fetch(VERSION_URL + '?t=' + Date.now());
+    const data = await res.json();
+
+    if (data.version && data.version !== APP_VERSION) {
+      status.textContent = 'Nova versão ' + data.version + ' disponível! Baixando...';
+      status.style.color = 'var(--accent3)';
+      const html = await fetch(UPDATE_URL + '?t=' + Date.now());
+      const text = await html.text();
+      localStorage.setItem('nexo_just_updated', '1');
+      status.textContent = 'Atualizado! Reiniciando...';
+      setTimeout(() => {
+        window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
+      }, 1500);
+    } else {
+      status.textContent = 'Você já está na versão mais recente!';
+      status.style.color = 'var(--success)';
+      btn.textContent = 'Verificar atualização';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    status.textContent = 'Erro ao verificar. Tente novamente.';
+    status.style.color = 'var(--danger)';
+    btn.textContent = 'Verificar atualização';
+    btn.disabled = false;
+  }
+}
+
 async function toggleNotifications() {
   if (notifGranted || (!isNative() && typeof Notification !== 'undefined' && Notification.permission === 'granted')) {
     // Desativar — cancela notificações agendadas
@@ -1687,6 +1723,10 @@ function switchTab(tab) {
   });
   if (tab === 'summary') updateStats();
   if (tab === 'tasks') renderTasks();
+  if (tab === 'settings') {
+    const cv = document.getElementById('cfg-version');
+    if (cv) cv.textContent = APP_VERSION;
+  }
   const inputArea = document.querySelector('.chat-input-area');
   if (inputArea) inputArea.style.display = tab === 'chat' ? '' : 'none';
   closeSidebar();
@@ -1723,7 +1763,6 @@ init();
 </script>
 </body>
 </html>
-
 
 
 
