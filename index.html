@@ -1009,12 +1009,16 @@ let state = {
 };
 
 // ============ OTA UPDATE ============
-const APP_VERSION = '1.3.7';
+const APP_VERSION = '1.3.8';
 const VERSION_URL = 'https://mvp-assistente.vercel.app/version.json';
 const UPDATE_URL  = 'https://mvp-assistente.vercel.app/index.html';
 
 async function checkForUpdate() {
-  if (!isNative()) return;
+  console.log('OTA_CHECK: isNative=' + isNative() + ' version=' + APP_VERSION);
+  if (!isNative()) {
+    console.log('OTA_CHECK: nao e nativo, saindo');
+    return;
+  }
 
   // Cooldown: só checa 1x a cada 5 minutos
   const lastCheck = parseInt(localStorage.getItem('nexo_last_update_check') || '0');
@@ -1719,5 +1723,6 @@ init();
 </script>
 </body>
 </html>
+
 
 
