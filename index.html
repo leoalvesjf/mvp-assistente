@@ -5,264 +5,215 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0f0f1a" />
   <meta name="description" content="Seu assistente pessoal para foco e TDAH" />
-  <title>Claudio — Seu Parceiro de Foco</title>
+  <title>Nexo — Seu Parceiro de Foco</title>
   <link rel="manifest" href="#" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
-  <!-- Preload fonts to avoid layout shift -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="app">
+  <div id="app">
+    <!-- Sidebar overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-left">
-      <button class="icon-btn" onclick="openSidebar()" title="Menu" style="font-size:20px;margin-right:8px">☰</button>
-      <div class="avatar">🧠</div>
-      <div>
-        <div class="header-name">Nexo</div>
-        <div class="status-dot">online agora</div>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="avatar">🧠</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px">Nexo</div>
       </div>
-    </div>
-    <div class="header-actions">
-      <button class="icon-btn" onclick="requestNotificationPermission()" title="Ativar notificações">🔔</button>
-    </div>
-  </div>
+      <button class="sidebar-item active" onclick="switchTab('chat')" id="tab-chat">
+        <span>💬</span> Chat
+      </button>
+      <button class="sidebar-item" onclick="switchTab('tasks')" id="tab-tasks">
+        <span>✅</span> Tarefas
+      </button>
+      <button class="sidebar-item" onclick="switchTab('summary')" id="tab-summary">
+        <span>📊</span> Resumo
+      </button>
+      <button class="sidebar-item" onclick="switchTab('settings')" id="tab-settings">
+        <span>⚙️</span> Configurações
+      </button>
 
-  <!-- Sidebar overlay -->
-  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <div class="avatar">🧠</div>
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px">Nexo</div>
-    </div>
-    <button class="sidebar-item active" onclick="switchTab('chat')" id="tab-chat">
-      <span>💬</span> Chat
-    </button>
-    <button class="sidebar-item" onclick="switchTab('tasks')" id="tab-tasks">
-      <span>✅</span> Tarefas
-    </button>
-    <button class="sidebar-item" onclick="switchTab('summary')" id="tab-summary">
-      <span>📊</span> Resumo
-    </button>
-    <button class="sidebar-item" onclick="switchTab('settings')" id="tab-settings">
-      <span>⚙️</span> Configurações
-    </button>
-    <div style="margin-top:auto;padding:16px 8px 0;border-top:1px solid var(--border);color:var(--text-dim);font-size:11px">
-      Nexo v<span id="app-version-display"></span>
-    </div>
-  </div>
-
-  <!-- CHAT -->
-  <div class="chat-container active" id="section-chat">
-    <div class="messages" id="messages"></div>
-    <div class="chat-input-area">
-      <div class="chat-input-row">
-        <textarea class="chat-input" id="chatInput" placeholder="Conta o que você tá fazendo..." rows="1"
-          onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- TASKS -->
-  <div class="section" id="section-tasks">
-    <div class="tasks-container">
-      <div class="section-title">Tarefas de hoje</div>
-      <div id="tasks-list"></div>
-    </div>
-  </div>
-
-  <!-- SUMMARY -->
-  <div class="section" id="section-summary">
-    <div class="summary-container">
-      <div class="summary-card">
-        <div class="summary-header">
-          <div class="summary-icon purple">📊</div>
-          <div class="summary-title">Seu dia até agora</div>
-        </div>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-num" id="stat-tasks">0</div>
-            <div class="stat-label">tarefas</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-num" id="stat-done">0</div>
-            <div class="stat-label">concluídas</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-num" id="stat-msgs">0</div>
-            <div class="stat-label">trocas</div>
-          </div>
-        </div>
-        <button class="generate-btn" id="summaryBtn" onclick="generateSummary()">
-          ✨ Gerar resumo do dia com IA
-        </button>
-        <div class="ai-summary-box" id="ai-summary" style="display:none"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SETTINGS -->
-  <div class="section" id="section-settings">
-    <div class="settings-container">
-      <div class="section-title">Configurações</div>
-
-      <div class="setting-group">
-        <div class="setting-item">
-          <div class="setting-icon">🔑</div>
-          <div class="setting-info">
-            <div class="setting-label">API Key Anthropic</div>
-            <div class="setting-desc">Sua chave para usar o Claude Haiku</div>
-          </div>
-          <div class="setting-control">
-            <input type="password" id="apiKey" placeholder="sk-ant-..." />
-          </div>
-        </div>
-        <div class="setting-item">
-          <div class="setting-icon">⏱️</div>
-          <div class="setting-info">
-            <div class="setting-label">Check-in a cada</div>
-            <div class="setting-desc">Intervalo de mensagens automáticas</div>
-          </div>
-          <div class="setting-control">
-            <select id="interval">
-              <option value="30">30 min</option>
-              <option value="60" selected>1 hora</option>
-              <option value="90">1h30</option>
-              <option value="120">2 horas</option>
-            </select>
-          </div>
-        </div>
-        <div class="setting-item">
-          <div class="setting-icon">👤</div>
-          <div class="setting-info">
-            <div class="setting-label">Seu nome</div>
-            <div class="setting-desc">Como o Nexo vai te chamar</div>
-          </div>
-          <div class="setting-control">
-            <input type="text" id="userName" placeholder="seu nome..." />
-          </div>
+      <div class="sidebar-history">
+        <div class="history-label">Histórico Recente</div>
+        <div class="history-list" id="history-list">
+          <!-- JS renderiza aqui os itens vindos do Supabase -->
         </div>
       </div>
 
-      <button class="save-btn" onclick="saveSettings()">💾 Salvar configurações</button>
+      <div style="margin-top:auto;padding:16px 8px 0;border-top:1px solid var(--border);color:var(--text-dim);font-size:11px">
+        Nexo v<span id="app-version-display"></span>
+      </div>
+    </div>
 
-      <div style="margin-top:24px">
-        <div class="section-title">Notificações</div>
-        <div class="setting-group">
-          <div class="setting-item">
-            <div class="setting-icon">🔔</div>
-            <div class="setting-info">
-              <div class="setting-label">Push notifications</div>
-              <div class="setting-desc" id="notif-status">Clique para ativar</div>
-            </div>
-            <div class="setting-control">
-              <button class="save-btn" id="notif-btn" style="margin:0;min-width:100px;padding:8px 12px;font-size:12px" onclick="toggleNotifications()">Ativar</button>
+    <!-- Painel de Conteúdo -->
+    <div class="main-content">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-left">
+          <button class="icon-btn" onclick="openSidebar()" title="Menu" style="font-size:20px;margin-right:8px">☰</button>
+          <div class="avatar">🧠</div>
+          <div>
+            <div class="header-name">Nexo</div>
+            <div class="status-dot">online agora</div>
+          </div>
+        </div>
+        <div class="header-actions"></div>
+      </div>
+
+      <!-- Seções -->
+      <div class="content-body">
+        <!-- CHAT -->
+        <div class="chat-container active" id="section-chat">
+          <div class="messages" id="messages"></div>
+          <div class="chat-input-area">
+            <div class="chat-input-row">
+              <textarea class="chat-input" id="chatInput" placeholder="Conta o que você tá fazendo..." rows="1" onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
+              <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
             </div>
           </div>
-          <div class="setting-item">
-            <div class="setting-icon">🌙</div>
-            <div class="setting-info">
-              <div class="setting-label">Não perturbe</div>
-              <div class="setting-desc">Silenciar notificações fora deste horário</div>
+        </div>
+
+        <!-- TASKS -->
+        <div class="section" id="section-tasks">
+          <div class="tasks-container">
+            <div class="section-title">Tarefas de hoje</div>
+            <div id="tasks-list"></div>
+          </div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div class="section" id="section-summary">
+          <div class="summary-container">
+            <div class="summary-card">
+              <div class="summary-header">
+                <div class="summary-icon purple">📊</div>
+                <div class="summary-title">Seu dia até agora</div>
+              </div>
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-num" id="stat-tasks">0</div>
+                  <div class="stat-label">tarefas</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-num" id="stat-done">0</div>
+                  <div class="stat-label">concluídas</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-num" id="stat-msgs">0</div>
+                  <div class="stat-label">trocas</div>
+                </div>
+              </div>
+              <button class="generate-btn" id="summaryBtn" onclick="generateSummary()"> ✨ Gerar resumo do dia com IA </button>
+              <div class="ai-summary-box" id="ai-summary" style="display:none"></div>
             </div>
           </div>
-          <div class="setting-item" style="gap:8px;flex-wrap:wrap">
-            <div class="setting-icon">⏰</div>
-            <div class="setting-info"><div class="setting-label">Das</div></div>
-            <div class="setting-control">
-              <select id="quietStart" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px">
-                <option value="0">00h</option>
-                <option value="1">01h</option>
-                <option value="2">02h</option>
-                <option value="3">03h</option>
-                <option value="4">04h</option>
-                <option value="5">05h</option>
-                <option value="6">06h</option>
-                <option value="7">07h</option>
-                <option value="8">08h</option>
-                <option value="9">09h</option>
-                <option value="10">10h</option>
-                <option value="11">11h</option>
-                <option value="12">12h</option>
-                <option value="13">13h</option>
-                <option value="14">14h</option>
-                <option value="15">15h</option>
-                <option value="16">16h</option>
-                <option value="17">17h</option>
-                <option value="18">18h</option>
-                <option value="19">19h</option>
-                <option value="20">20h</option>
-                <option value="21">21h</option>
-                <option value="22">22h</option>
-                <option value="23">23h</option>
-              </select>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="section" id="section-settings">
+          <div class="settings-container">
+            <div class="section-title">Configurações</div>
+            <div class="setting-group">
+              <div class="setting-item">
+                <div class="setting-icon">🔑</div>
+                <div class="setting-info">
+                  <div class="setting-label">API Key Anthropic</div>
+                  <div class="setting-desc">Sua chave do Claude Haiku</div>
+                </div>
+                <div class="setting-control">
+                  <input type="password" id="apiKey" placeholder="sk-ant-..." />
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-icon">⏱️</div>
+                <div class="setting-info">
+                  <div class="setting-label">Check-in a cada</div>
+                  <div class="setting-desc">Intervalo de mensagens automáticas</div>
+                </div>
+                <div class="setting-control">
+                  <select id="interval">
+                    <option value="30">30 min</option>
+                    <option value="60" selected>1 hora</option>
+                    <option value="90">1h30</option>
+                    <option value="120">2 horas</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-icon">👤</div>
+                <div class="setting-info">
+                  <div class="setting-label">Seu nome</div>
+                  <div class="setting-desc">Como o Nexo vai te chamar</div>
+                </div>
+                <div class="setting-control">
+                  <input type="text" id="userName" placeholder="seu nome..." />
+                </div>
+              </div>
             </div>
-            <div class="setting-info"><div class="setting-label">às</div></div>
-            <div class="setting-control">
-              <select id="quietEnd" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px">
-                <option value="0">00h</option>
-                <option value="1">01h</option>
-                <option value="2">02h</option>
-                <option value="3">03h</option>
-                <option value="4">04h</option>
-                <option value="5">05h</option>
-                <option value="6">06h</option>
-                <option value="7">07h</option>
-                <option value="8">08h</option>
-                <option value="9">09h</option>
-                <option value="10">10h</option>
-                <option value="11">11h</option>
-                <option value="12">12h</option>
-                <option value="13">13h</option>
-                <option value="14">14h</option>
-                <option value="15">15h</option>
-                <option value="16">16h</option>
-                <option value="17">17h</option>
-                <option value="18">18h</option>
-                <option value="19">19h</option>
-                <option value="20">20h</option>
-                <option value="21">21h</option>
-                <option value="22">22h</option>
-                <option value="23">23h</option>
-              </select>
+            <button class="save-btn" onclick="saveSettings()">💾 Salvar configurações</button>
+
+            <div style="margin-top:24px">
+              <div class="section-title">Notificações</div>
+              <div class="setting-group">
+                <div class="setting-item">
+                  <div class="setting-icon">🔔</div>
+                  <div class="setting-info">
+                    <div class="setting-label">Push notifications</div>
+                    <div class="setting-desc" id="notif-status">Clique para ativar</div>
+                  </div>
+                  <div class="setting-control">
+                    <button class="save-btn" id="notif-btn" style="margin:0;min-width:100px;padding:8px 12px;font-size:12px" onclick="toggleNotifications()">Ativar</button>
+                  </div>
+                </div>
+                <div class="setting-item">
+                  <div class="setting-icon">🌙</div>
+                  <div class="setting-info">
+                    <div class="setting-label">Não perturbe</div>
+                    <div class="setting-desc">Silenciar fora deste horário</div>
+                  </div>
+                </div>
+                <div class="setting-item" style="gap:8px;flex-wrap:wrap">
+                  <div class="setting-icon">⏰</div>
+                  <div class="setting-info"><div class="setting-label">Das</div></div>
+                  <div class="setting-control">
+                    <select id="quietStart" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px">
+                      <option value="0">00h</option><option value="1">01h</option><option value="2">02h</option><option value="3">03h</option><option value="4">04h</option><option value="5">05h</option><option value="6">06h</option><option value="7">07h</option><option value="8" selected>08h</option><option value="9">09h</option><option value="10">10h</option><option value="11">11h</option><option value="12">12h</option><option value="13">13h</option><option value="14">14h</option><option value="15">15h</option><option value="16">16h</option><option value="17">17h</option><option value="18">18h</option><option value="19">19h</option><option value="20">20h</option><option value="21">21h</option><option value="22">22h</option><option value="23">23h</option>
+                    </select>
+                  </div>
+                  <div class="setting-info"><div class="setting-label">às</div></div>
+                  <div class="setting-control">
+                    <select id="quietEnd" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px">
+                      <option value="0">00h</option><option value="1">01h</option><option value="2">02h</option><option value="3">03h</option><option value="4">04h</option><option value="5">05h</option><option value="6">06h</option><option value="7">07h</option><option value="8">08h</option><option value="9">09h</option><option value="10">10h</option><option value="11">11h</option><option value="12">12h</option><option value="13">13h</option><option value="14">14h</option><option value="15">15h</option><option value="16">16h</option><option value="17">17h</option><option value="18">18h</option><option value="19">19h</option><option value="20">20h</option><option value="21">21h</option><option value="22" selected>22h</option><option value="23">23h</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:24px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:16px">
+              <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:8px;color:var(--accent)">🔄 Atualização</div>
+              <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Versão instalada: <strong id="cfg-version"></strong></div>
+              <button class="save-btn" onclick="manualCheckUpdate()" id="update-btn" style="width:100%;margin:0">Verificar atualização</button>
+              <div id="update-status" style="font-size:12px;color:var(--text-dim);margin-top:8px;text-align:center"></div>
             </div>
           </div>
         </div>
       </div>
-
-      <div style="margin-top: 24px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px;">
-        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:8px;color:var(--accent)">🔄 Atualização do App</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
-          Versão instalada: <strong style="color:var(--text)" id="cfg-version"></strong>
-        </div>
-        <button class="save-btn" onclick="manualCheckUpdate()" id="update-btn" style="width:100%;margin:0">
-          Verificar atualização
-        </button>
-        <div id="update-status" style="font-size:12px;color:var(--text-dim);margin-top:8px;text-align:center"></div>
-      </div>
     </div>
   </div>
 
-</div>
+  <div class="toast" id="toast"></div>
 
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
-<!-- Update overlay -->
-<div id="update-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,18,0.97);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:24px">
-  <div style="font-size:48px">🧠</div>
-  <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--text)">Atualizando Nexo</div>
-  <div style="width:260px;background:var(--surface2);border-radius:99px;height:6px;overflow:hidden">
-    <div id="update-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:99px;transition:width 0.3s ease"></div>
+  <div id="update-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,18,0.97);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:24px">
+    <div style="font-size:48px">🧠</div>
+    <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--text)">Atualizando Nexo</div>
+    <div style="width:260px;background:var(--surface2);border-radius:99px;height:6px;overflow:hidden">
+      <div id="update-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent3));border-radius:99px;transition:width 0.3s ease"></div>
+    </div>
+    <div id="update-progress-text" style="font-size:13px;color:var(--text-dim)">Baixando...</div>
   </div>
-  <div id="update-progress-text" style="font-size:13px;color:var(--text-dim)">Baixando...</div>
-</div>
 
-  <!-- External Scripts -->
   <script src="js/constants.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/ota.js"></script>
@@ -270,8 +221,3 @@
   <script src="js/app.js"></script>
 </body>
 </html>
-
-
-
-
-

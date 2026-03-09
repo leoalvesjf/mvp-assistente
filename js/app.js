@@ -7,7 +7,8 @@ let state = {
         interval: 60,
         userName: 'você',
         quietStart: 8,
-        quietEnd: 22
+        quietEnd: 22,
+        isPremium: false // Preparação para Fase 3
     },
     checkInTimer: null,
     isTyping: false,
@@ -30,6 +31,13 @@ function init() {
         loadTasksFromDB().then(() => {
             renderTasks();
             updateStats();
+        });
+    }
+
+    // Carrega histórico para o sidebar
+    if (typeof fetchHistoryFromDB === 'function') {
+        fetchHistoryFromDB().then(sessions => {
+            if (typeof renderHistory === 'function') renderHistory(sessions);
         });
     }
 

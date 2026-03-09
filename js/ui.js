@@ -114,7 +114,36 @@ function closeSidebar() {
 }
 
 function handleEnter(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === 'Enter') {
+        if (isNative()) return; // Mobile: default newline
+        if (!e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+}
+
+function renderHistory(sessions) {
+    const container = document.getElementById('history-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!sessions || sessions.length === 0) {
+        container.innerHTML = '<div style="padding:10px 16px;font-size:12px;color:var(--text-dim);opacity:0.6">Nenhuma conversa ainda.</div>';
+        return;
+    }
+
+    sessions.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `<span>💬</span> ${s.title}`;
+        div.title = s.date;
+        div.onclick = () => {
+            switchTab('chat');
+            showToast(`Histórico: ${s.date}`);
+        };
+        container.appendChild(div);
+    });
 }
 
 function autoResize(el) {

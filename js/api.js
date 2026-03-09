@@ -1,6 +1,4 @@
-// ============ SUPABASE ============
-const SUPABASE_URL = 'https://cxhjypywqxxxhvgdvfdo.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_4M6CTKtDO-hJA4nNRt8akg_vD9quY1R';
+// Constantes já definidas em constants.js
 
 async function sbFetch(path, options = {}) {
   const prefer = options.prefer || '';
@@ -30,7 +28,7 @@ async function loadTasksFromDB() {
         time: new Date(t.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       }));
     }
-  } catch(e) {
+  } catch (e) {
     console.warn('Erro ao carregar tarefas:', e);
   }
 }
@@ -43,7 +41,7 @@ async function fetchYesterdayContext() {
     const msgs = await sbFetch(`conversations?created_at=gte.${dateStr}T00:00:00&order=created_at.desc&limit=15`);
     if (!msgs?.length) return 'Nenhuma conversa registrada ontem.';
     return msgs.reverse().map(m => `${m.role === 'user' ? 'Você' : 'Nexo'}: ${m.content}`).join('\n');
-  } catch(e) { return ''; }
+  } catch (e) { return ''; }
 }
 
 async function saveMessageToDB(role, content) {
@@ -53,7 +51,7 @@ async function saveMessageToDB(role, content) {
       prefer: 'return=minimal',
       body: JSON.stringify({ role, content })
     });
-  } catch(e) { console.warn('Erro ao salvar msg:', e); }
+  } catch (e) { console.warn('Erro ao salvar msg:', e); }
 }
 
 async function saveTaskToDB(text) {
@@ -64,7 +62,7 @@ async function saveTaskToDB(text) {
       body: JSON.stringify({ text, done: false })
     });
     return res?.[0]?.id;
-  } catch(e) { console.warn('Erro ao salvar tarefa:', e); }
+  } catch (e) { console.warn('Erro ao salvar tarefa:', e); }
 }
 
 async function updateTaskInDB(dbId, done) {
@@ -74,13 +72,37 @@ async function updateTaskInDB(dbId, done) {
       prefer: 'return=minimal',
       body: JSON.stringify({ done })
     });
-  } catch(e) { console.warn('Erro ao atualizar tarefa:', e); }
+  } catch (e) { console.warn('Erro ao atualizar tarefa:', e); }
 }
 
 async function deleteTaskFromDB(dbId) {
   try {
     await sbFetch(`tasks?id=eq.${dbId}`, { method: 'DELETE' });
-  } catch(e) { console.warn('Erro ao deletar tarefa:', e); }
+  } catch (e) { console.warn('Erro ao deletar tarefa:', e); }
+}
+
+async function fetchHistoryFromDB() {
+  try {
+    // Busca as últimas mensagens para gerar o histórico no sidebar
+    const msgs = await sbFetch('conversations?order=created_at.desc&limit=50');
+    if (!msgs?.length) return [];
+
+    const sessions = [];
+    const seenDates = new Set();
+
+    msgs.forEach(m => {
+      const dateStr = new Date(m.created_at).toLocaleDateString('pt-BR');
+      if (!seenDates.has(dateStr) && m.role === 'user') {
+        seenDates.add(dateStr);
+        sessions.push({
+          id: dateStr,
+          title: m.content.slice(0, 25) + (m.content.length > 25 ? '...' : ''),
+          date: dateStr
+        });
+      }
+    });
+    return sessions;
+  } catch (e) { return []; }
 }
 
 // ============ AI CALL (CLAUDE) ============
@@ -162,7 +184,7 @@ Máximo 3-4 frases.`;
     if (taskMatch) addTask(taskMatch[1].trim());
     return text.replace(/\[TAREFA:.*?\]/g, '').trim();
   } catch (err) {
-    console.error('NEXO_ERROR', JSON.stringify({msg: err.message, stack: err.stack}));
+    console.error('NEXO_ERROR', JSON.stringify({ msg: err.message, stack: err.stack }));
     return `Opa, deu um erro aqui 😅 — ${err.message}`;
   }
 }
