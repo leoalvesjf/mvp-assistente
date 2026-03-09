@@ -20,9 +20,11 @@
   "homepage": "https://github.com/leoalvesjf/mvp-assistente#readme",
   "dependencies": {
     "@capacitor/android": "^8.1.0",
+    "@capacitor/background-runner": "^3.0.0",
     "@capacitor/cli": "^8.1.0",
     "@capacitor/core": "^8.1.0",
     "@capacitor/local-notifications": "^8.0.1",
-    "@capacitor/push-notifications": "^8.0.1"
+    "@capacitor/push-notifications": "^8.0.1",
+    "@capgo/capacitor-updater": "^8.43.9"
   }
 }
