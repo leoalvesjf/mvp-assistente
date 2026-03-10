@@ -475,13 +475,18 @@ async function subscribeUserToPush() {
         // Quando o usuário configurar o servidor, ele troca esta chave
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: 'BEl62vp95WZaD6CEvEn392_C4w8ot_O69Y6Tq3-xB-fJ-0G2Y3C-V5V-H-A' // Placeholder
+            applicationServerKey: 'BEl62vp95WZaD6CEvEn392_C4w8ot_O69Y6Tq3-xB-fJ-0G2Y3C-V5V-H-A_U8Kzg_CExYvO-A'
         });
         
+        console.log('Push Subscription:', subscription);
         if (typeof saveSubscriptionToDB === 'function') {
             await saveSubscriptionToDB(subscription);
+            showToast('🔔 Notificações PWA ativadas!');
         }
-    } catch (e) { console.warn('Erro ao assinar Push:', e); }
+    } catch (e) { 
+        console.warn('Erro ao assinar Push:', e);
+        showToast('❌ Erro ao ativar notificações PWA');
+    }
 }
 
 async function sendNotification(title, body) {
