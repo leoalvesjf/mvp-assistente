@@ -60,7 +60,9 @@ function init() {
     }
 
     checkMidnightReset();
-    scheduleCheckIn();
+    checkNotificationPermissions().then(() => {
+        createNotificationChannel().then(() => scheduleCheckIn());
+    });
     if (typeof updateNotifStatus === 'function') updateNotifStatus();
 
     const vEl = document.getElementById('app-version-display');
@@ -243,6 +245,18 @@ function checkMidnightReset() {
 
 // ============ MESSAGES LOGIC ============
 function addMessage(role, content, save = true) {
+    // Detectar Lembrete: [LEMBRETE: 10:30 - Beber água]
+    if (role === 'assistant') {
+        const match = content.match(/\[LEMBRETE:\s*(\d{1,2}:\d{2})\s*-\s*([^\]]+)\]/i);
+        if (match) {
+            const time = match[1];
+            const text = match[2];
+            if (typeof scheduleReminder === 'function') scheduleReminder(time, text);
+            // Limpa a tag da exibição pro usuário ver um chat limpo
+            content = content.replace(match[0], '').trim();
+        }
+    }
+
     const msg = { role, content, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) };
     state.messages.push(msg);
     if (typeof renderMessages === 'function') renderMessages();
@@ -389,7 +403,13 @@ async function scheduleCheckIn() {
                 if (hour < 12) body = `Oi ${name}! ☀️ Como tá a manhã?`;
                 else if (hour < 18) body = `E aí ${name}! 🌤️ Como tão as coisas?`;
                 else body = `Boa noite ${name}! 🌙 Como foi o dia?`;
-                notifications.push({ title: 'Nexo 🧠', body, id: 100 + i, schedule: { at } });
+                notifications.push({ 
+                    title: 'Nexo 🧠', 
+                    body, 
+                    id: 100 + i, 
+                    channelId: 'nexo_alerts',
+                    schedule: { at } 
+                });
             }
 
             if (notifications.length > 0) {
@@ -444,12 +464,72 @@ async function sendNotification(title, body) {
         if (isNative() && notifGranted) {
             const { LocalNotifications } = window.Capacitor.Plugins;
             await LocalNotifications.schedule({
-                notifications: [{ title, body, id: notifId++, schedule: { at: new Date(Date.now() + 500) } }]
+                notifications: [{ 
+                    title, 
+                    body, 
+                    id: Math.floor(Math.random() * 100000), 
+                    channelId: 'nexo_alerts',
+                    schedule: { at: new Date(Date.now() + 500) } 
+                }]
             });
         } else if (!isNative() && Notification.permission === 'granted' && document.hidden) {
             new Notification(title, { body });
         }
     } catch (e) { console.warn('Erro notif:', e); }
+}
+
+async function createNotificationChannel() {
+    if (!isNative()) return;
+    try {
+        const { LocalNotifications } = window.Capacitor.Plugins;
+        await LocalNotifications.createChannel({
+            id: 'nexo_alerts',
+            name: 'Alertas do Nexo',
+            description: 'Notificações de foco e lembretes',
+            importance: 5, // Max importance
+            visibility: 1,
+            sound: 'default',
+            vibration: true
+        });
+    } catch (e) {}
+}
+
+async function checkNotificationPermissions() {
+    if (isNative()) {
+        try {
+            const { LocalNotifications } = window.Capacitor.Plugins;
+            const status = await LocalNotifications.checkPermissions();
+            notifGranted = status.display === 'granted';
+        } catch (e) {}
+    } else {
+        notifGranted = (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+    }
+}
+
+async function scheduleReminder(timeStr, text) {
+    if (!isNative() || !notifGranted) return;
+    try {
+        const [hour, min] = timeStr.split(':').map(Number);
+        const scheduledDate = new Date();
+        scheduledDate.setHours(hour, min, 0, 0);
+        
+        // Se a hora ja passou hoje, agenda pra amanha
+        if (scheduledDate < new Date()) {
+            scheduledDate.setDate(scheduledDate.getDate() + 1);
+        }
+
+        const { LocalNotifications } = window.Capacitor.Plugins;
+        await LocalNotifications.schedule({
+            notifications: [{
+                id: Math.floor(Math.random() * 100000),
+                title: 'Lembrete do Nexo 🧠',
+                body: text,
+                channelId: 'nexo_alerts',
+                schedule: { at: scheduledDate }
+            }]
+        });
+        showToast(`⏰ Lembrete agendado para as ${timeStr}`);
+    } catch (e) { console.warn('Erro ao agendar lembrete:', e); }
 }
 
 function updateNotifStatus() {

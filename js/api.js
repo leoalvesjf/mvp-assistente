@@ -157,6 +157,8 @@ Agora são ${timeStr} de ${dateStr}. Use isso para dar contexto (bom dia, boa ta
 
 Estilo: português casual, direto, amigo. Frases curtas. Sem formalidade.
 
+LEMBRETES: Se o usuário pedir para ser avisado ou notificado em um horário específico, você DEVE incluir no final da resposta a tag: [LEMBRETE: HH:MM - Descrição curta]. Exemplo: "Beleza, vou te avisar! [LEMBRETE: 10:10 - Hora da reunião]".
+
 Tarefas pendentes: ${pendingTasks}
 ${extraContext}
 ${systemExtra}
