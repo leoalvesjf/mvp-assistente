@@ -85,16 +85,10 @@ function loadSettings() {
         const qStartInput = document.getElementById('quietStart');
         const qEndInput = document.getElementById('quietEnd');
 
-        if (apiInput) apiInput.value = state.settings.apiKey || '';
         if (intervalInput) intervalInput.value = state.settings.interval || 60;
+        if (nameInput) nameInput.value = state.settings.userName || '';
         if (qStartInput) qStartInput.value = state.settings.quietStart ?? 8;
         if (qEndInput) qEndInput.value = state.settings.quietEnd ?? 22;
-
-        // Regra: Esconder campo de API Key se for FREE
-        const apiItem = document.getElementById('api-key-setting');
-        if (apiItem) {
-            apiItem.style.display = (state.settings.userRole === 'paid' || state.settings.userRole === 'admin') ? 'block' : 'none';
-        }
     } catch (e) { }
 }
 
