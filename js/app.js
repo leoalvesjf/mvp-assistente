@@ -89,6 +89,12 @@ function loadSettings() {
         if (nameInput) nameInput.value = state.settings.userName || '';
         if (qStartInput) qStartInput.value = state.settings.quietStart ?? 8;
         if (qEndInput) qEndInput.value = state.settings.quietEnd ?? 22;
+
+        // Regra: Esconder campo de API Key se for FREE
+        const apiRow = document.getElementById('apiKey')?.closest('.settings-row');
+        if (apiRow) {
+            apiRow.style.display = (state.settings.userRole === 'paid' || state.settings.userRole === 'admin') ? 'flex' : 'none';
+        }
     } catch (e) { }
 }
 
@@ -309,12 +315,12 @@ function startNewChat() {
 
 // ============ TASKS LOGIC ============
 async function addTask(text) {
-    // Regra FREE: limite de 1 tarefa
-    const isFree = !state.settings.userPhone || state.settings.userRole === 'free';
+    // Regra FREE: limite de 1 tarefa ativa
+    const isPaid = state.settings.userRole === 'paid' || state.settings.userRole === 'admin';
     const activeTasks = state.tasks.filter(t => !t.done).length;
     
-    if (isFree && activeTasks >= 1) {
-        addMessage('assistant', '⚠️ Você atingiu seu limite gratuito de 1 tarefa. Cadastre-se ou assine o plano Premium para gerenciar mais tarefas ao mesmo tempo!');
+    if (!isPaid && activeTasks >= 1) {
+        addMessage('assistant', '⚠️ Você já tem uma tarefa ativa. Como você está no plano **Free**, precisa concluir essa antes de adicionar outra. Se quiser foco total e tarefas ilimitadas, migre para o **Premium**!');
         return;
     }
 

@@ -119,25 +119,28 @@ async function loadMessagesFromDB(sessionId) {
 
 // ============ AI CALL (CLAUDE) ============
 async function callClaude(userMessage, systemExtra = '', retries = 2) {
-  // Regra de Negócio: Limite para usuários FREE/GUEST
-  const isFree = !state.settings.userPhone || state.settings.userRole === 'free';
-  if (isFree) {
-     // Limite de 6 trocas de mensagens para usuários gratuitos por sessão
-     const msgCount = state.messages.filter(m => m.role === 'user').length;
-     if (msgCount >= 6) {
-        return "⚠️ Você já atingiu seu limite gratuito de uso hoje. **Migre seu plano** para o Premium para ter conversas ilimitadas e usufruir de todas as funções do Nexo!";
+  const isPaid = state.settings.userRole === 'paid' || state.settings.userRole === 'admin';
+  
+  if (!isPaid) {
+     const userMsgCount = state.messages.filter(m => m.role === 'user').length;
+     if (userMsgCount >= 5) {
+        return "⚠️ Você atingiu seu limite gratuito de mensagens. **Assine o plano Premium** para conversas ilimitadas e produtividade sem limites!";
      }
-  }
-
-  const apiKey = state.settings.apiKey;
-  if (!apiKey) {
-    showToast('⚠️ Configure sua API Key nas configurações!');
-    return null;
   }
 
   const name = state.settings.userName || 'você';
   const pendingTasks = state.tasks.filter(t => !t.done).map(t => `- ${t.text}`).join('\n') || 'nenhuma';
+  
+  // Se tem key local (Usuario Pago que quer usar a propria), usa Direto.
+  // Senão, usa o Proxy Seguro do Supabase (Edge Function)
+  const userKey = state.settings.apiKey;
+  
+  if (!userKey) {
+    // CHAMADA VIA EDGE FUNCTION (SEGURO)
+    return await callClaudeViaProxy(userMessage, systemExtra, name, pendingTasks);
+  }
 
+  // CHAMADA DIRETA (LEGADO/USUARIO PAGO COM KEY PROPRIA)
   let extraContext = '';
   if (needsHistorySearch(userMessage)) {
     showToast('🔍 Buscando histórico...');
@@ -158,6 +161,11 @@ Agora são ${timeStr} de ${dateStr}. Use isso para dar contexto (bom dia, boa ta
 Estilo: português casual, direto, amigo. Frases curtas. Sem formalidade.
 
 LEMBRETES: Se o usuário pedir para ser avisado ou notificado em um horário específico, você DEVE incluir no final da resposta a tag: [LEMBRETE: HH:MM - Descrição curta]. Exemplo: "Beleza, vou te avisar! [LEMBRETE: 10:10 - Hora da reunião]".
+
+REGRAS DE PLANO: 
+- Usuário FREE: Pode ter apenas **1 tarefa ativa** por vez e limite de **5 mensagens** por sessão. 
+- Usuário PAGO: Tem tarefas e mensagens **ilimitadas**.
+Se o usuário atingir o limite ou perguntar, explique educadamente e sugira o upgrade para o Premium.
 
 Tarefas pendentes: ${pendingTasks}
 ${extraContext}
@@ -210,5 +218,24 @@ Máximo 3-4 frases.`;
   } catch (err) {
     console.error('NEXO_ERROR', JSON.stringify({ msg: err.message, stack: err.stack }));
     return `Opa, deu um erro aqui 😅 — ${err.message}`;
+  }
+}
+async function callClaudeViaProxy(message, extra, name, tasks) {
+  try {
+    const { data, error } = await supabase.functions.invoke('nexo-chat', {
+        body: { 
+            message, 
+            history: state.messages.slice(-5), 
+            userName: name,
+            tasks: tasks,
+            extra: extra
+        }
+    });
+
+    if (error) throw error;
+    return data && data.reply ? data.reply : "O Nexo está meditando agora... tente mandar a mensagem de novo.";
+  } catch (e) {
+    console.error('Erro no Proxy:', e);
+    return "Tive um erro ao falar com o servidor. Verifique sua internet!";
   }
 }
