@@ -22,6 +22,7 @@ const SESSION_KEY = 'nexo_session_v2';
 let notifGranted = false;
 let notifId = 1;
 let deferredPrompt = null;
+let pwaNotifEnabled = localStorage.getItem('nexo_pwa_notif') === 'true';
 
 // ============ INITIALIZATION ============
 function init() {
@@ -475,12 +476,17 @@ async function subscribeUserToPush() {
         console.log('Push Subscription:', subscription);
         if (typeof saveSubscriptionToDB === 'function') {
             await saveSubscriptionToDB(subscription);
+            pwaNotifEnabled = true;
+            localStorage.setItem('nexo_pwa_notif', 'true');
             showToast('🔔 Notificações PWA ativadas!');
         }
     } catch (e) { 
         console.warn('Erro ao assinar Push:', e);
+        pwaNotifEnabled = false;
+        localStorage.setItem('nexo_pwa_notif', 'false');
         showToast('❌ Erro ao ativar notificações PWA');
     }
+    updateNotifStatus();
 }
 
 async function sendNotification(title, body) {
@@ -559,7 +565,8 @@ async function scheduleReminder(timeStr, text) {
 function updateNotifStatus() {
     const el = document.getElementById('notif-status');
     const btn = document.getElementById('notif-btn');
-    const granted = isNative() ? notifGranted : (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+    const pwaActive = !isNative() && pwaNotifEnabled && (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+    const granted = isNative() ? notifGranted : pwaActive;
 
     if (!el) return;
     if (!('Notification' in window) && !isNative()) {
@@ -591,7 +598,9 @@ function updateNotifStatus() {
 }
 
 async function toggleNotifications() {
-    if (notifGranted || (!isNative() && typeof Notification !== 'undefined' && Notification.permission === 'granted')) {
+    const isCurrentlyActive = isNative() ? notifGranted : (pwaNotifEnabled && Notification.permission === 'granted');
+    
+    if (isCurrentlyActive) {
         if (isNative()) {
             try {
                 const { LocalNotifications } = window.Capacitor.Plugins;
@@ -599,8 +608,17 @@ async function toggleNotifications() {
                     notifications: Array.from({ length: 20 }, (_, i) => ({ id: 100 + i }))
                 });
             } catch (e) { }
+            notifGranted = false;
+        } else {
+            // PWA Unsubscribe
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                if (sub) await sub.unsubscribe();
+                pwaNotifEnabled = false;
+                localStorage.setItem('nexo_pwa_notif', 'false');
+            } catch (e) { console.warn('Erro ao desinscrever:', e); }
         }
-        notifGranted = false;
         showToast('🔕 Notificações desativadas');
         updateNotifStatus();
     } else {
@@ -610,14 +628,18 @@ async function toggleNotifications() {
 
 // ============ SETTINGS LOGIC ============
 function saveSettings() {
-    state.settings.apiKey = document.getElementById('apiKey').value.trim();
-    state.settings.interval = parseInt(document.getElementById('interval').value);
-    state.settings.userName = document.getElementById('userName').value.trim() || 'você';
-    state.settings.quietStart = parseInt(document.getElementById('quietStart').value);
-    state.settings.quietEnd = parseInt(document.getElementById('quietEnd').value);
-    persistSettings();
-    scheduleCheckIn();
-    showToast('✅ Configurações salvas!');
+    try {
+        state.settings.interval = parseInt(document.getElementById('interval').value) || 60;
+        state.settings.userName = document.getElementById('userName').value.trim() || 'você';
+        state.settings.quietStart = parseInt(document.getElementById('quietStart').value);
+        state.settings.quietEnd = parseInt(document.getElementById('quietEnd').value);
+        persistSettings();
+        scheduleCheckIn();
+        showToast('✅ Configurações salvas!');
+    } catch (e) { 
+        console.error('Erro ao salvar settings:', e);
+        showToast('❌ Erro ao salvar');
+    }
 }
 
 // ============ INTENT DETECTION HELPERS ============
