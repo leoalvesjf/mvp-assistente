@@ -46,10 +46,12 @@ async function fetchYesterdayContext() {
 
 async function saveMessageToDB(role, content) {
   try {
+    const userPhone = state.settings.userPhone || 'anon';
+    const sessionId = state.sessionId || 'today';
     await sbFetch('conversations', {
       method: 'POST',
       prefer: 'return=minimal',
-      body: JSON.stringify({ role, content })
+      body: JSON.stringify({ role, content, user_phone: userPhone, session_id: sessionId })
     });
   } catch (e) { console.warn('Erro ao salvar msg:', e); }
 }
@@ -83,21 +85,24 @@ async function deleteTaskFromDB(dbId) {
 
 async function fetchHistoryFromDB() {
   try {
-    // Busca as últimas mensagens para gerar o histórico no sidebar
-    const msgs = await sbFetch('conversations?order=created_at.desc&limit=50');
+    const userPhone = state.settings.userPhone;
+    if (!userPhone) return [];
+    
+    // Busca conversas do usuário, agrupadas por session_id
+    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&order=created_at.desc&limit=100`);
     if (!msgs?.length) return [];
-
+    
     const sessions = [];
-    const seenDates = new Set();
-
+    const seenSessions = new Set();
+    
     msgs.forEach(m => {
-      const dateStr = new Date(m.created_at).toLocaleDateString('pt-BR');
-      if (!seenDates.has(dateStr) && m.role === 'user') {
-        seenDates.add(dateStr);
+      const sid = m.session_id || 'legacy';
+      if (!seenSessions.has(sid) && m.role === 'user') {
+        seenSessions.add(sid);
         sessions.push({
-          id: dateStr,
-          title: m.content.slice(0, 25) + (m.content.length > 25 ? '...' : ''),
-          date: dateStr
+          id: sid,
+          title: m.content.slice(0, 30) + (m.content.length > 30 ? '...' : ''),
+          date: new Date(m.created_at).toLocaleDateString('pt-BR')
         });
       }
     });
@@ -105,8 +110,25 @@ async function fetchHistoryFromDB() {
   } catch (e) { return []; }
 }
 
+async function loadMessagesFromDB(sessionId) {
+  try {
+    const msgs = await sbFetch(`conversations?session_id=eq.${sessionId}&order=created_at.asc`);
+    return msgs || [];
+  } catch (e) { return []; }
+}
+
 // ============ AI CALL (CLAUDE) ============
 async function callClaude(userMessage, systemExtra = '', retries = 2) {
+  // Regra de Negócio: Limite para usuários FREE/GUEST
+  const isFree = !state.settings.userPhone || state.settings.userRole === 'free';
+  if (isFree) {
+     // Limite de 6 trocas de mensagens para usuários gratuitos por sessão
+     const msgCount = state.messages.filter(m => m.role === 'user').length;
+     if (msgCount >= 6) {
+        return "⚠️ Você já atingiu seu limite gratuito de uso hoje. **Migre seu plano** para o Premium para ter conversas ilimitadas e usufruir de todas as funções do Nexo!";
+     }
+  }
+
   const apiKey = state.settings.apiKey;
   if (!apiKey) {
     showToast('⚠️ Configure sua API Key nas configurações!');

@@ -138,12 +138,48 @@ function renderHistory(sessions) {
         div.className = 'history-item';
         div.innerHTML = `<span>💬</span> ${s.title}`;
         div.title = s.date;
-        div.onclick = () => {
-            switchTab('chat');
-            showToast(`Histórico: ${s.date}`);
-        };
+        div.onclick = () => loadPastSession(s.id);
         container.appendChild(div);
     });
+}
+
+async function loadPastSession(sid) {
+    switchTab('chat');
+    showToast('Carregando conversa...');
+    const msgs = await loadMessagesFromDB(sid);
+    if (msgs) {
+        state.messages = msgs.map(m => ({
+            role: m.role,
+            content: m.content,
+            time: new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        }));
+        renderMessages();
+    }
+}
+
+function handleLogin() {
+    const phoneInput = document.getElementById('login-phone');
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    if (!phone) { showToast('Digite seu celular!'); return; }
+
+    state.settings.userPhone = phone;
+    // Exemplo de lógica de roles
+    if (phone === '11999999999') state.settings.userRole = 'admin';
+    else if (phone.length > 8) state.settings.userRole = 'paid';
+    else state.settings.userRole = 'free';
+
+    persistSettings();
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'grid';
+
+    const badge = document.getElementById('user-role-badge');
+    if (badge) {
+        badge.className = `badge-role role-${state.settings.userRole}`;
+        badge.textContent = state.settings.userRole;
+    }
+
+    showToast(`Bem-vindo! Modo: ${state.settings.userRole.toUpperCase()}`);
+    init(); // Reinicializa com os dados do usuário
 }
 
 function autoResize(el) {

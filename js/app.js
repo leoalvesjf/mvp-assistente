@@ -1,4 +1,3 @@
-// ============ GLOBAL STATE ============
 let state = {
     messages: [],
     tasks: [],
@@ -6,14 +5,19 @@ let state = {
         apiKey: '',
         interval: 60,
         userName: 'você',
+        userRole: 'free',
+        userPhone: '',
+        userEmail: '',
         quietStart: 8,
-        quietEnd: 22,
-        isPremium: false // Preparação para Fase 3
+        quietEnd: 22
     },
     checkInTimer: null,
     isTyping: false,
-    todayKey: new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD'
+    todayKey: new Date().toISOString().slice(0, 10),
+    sessionId: localStorage.getItem('nexo_session_v2') || Date.now().toString()
 };
+const STORAGE_KEY = 'nexo_app_settings'; // New key to force reset
+const SESSION_KEY = 'nexo_session_v2';
 
 let notifGranted = false;
 let notifId = 1;
@@ -22,26 +26,32 @@ let notifId = 1;
 function init() {
     loadSettings();
 
-    // Carrega chat do dia (local)
+    // Reset se os dados estiverem corrompidos ou faltando campos básicos
+    if (!state.settings.userPhone) {
+        state.settings.userRole = 'free';
+        state.settings.userName = 'você';
+        persistSettings();
+    }
+
+    // App abre sempre direto, modal de login é opcional
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) loginScreen.style.display = 'none';
+    
+    updateUserBadge();
+    updateAuthButton();
+
+    // Carrega chat do dia
     const hadChat = loadChatToday();
     if (typeof renderMessages === 'function') renderMessages();
 
-    // Carrega tarefas do banco
-    if (typeof loadTasksFromDB === 'function') {
-        loadTasksFromDB().then(() => {
-            renderTasks();
-            updateStats();
-        });
-    }
-
-    // Carrega histórico para o sidebar
+    // Carregar tarefas e histórico
+    if (typeof loadTasksFromDB === 'function') loadTasksFromDB().then(() => { renderTasks(); updateStats(); });
     if (typeof fetchHistoryFromDB === 'function') {
         fetchHistoryFromDB().then(sessions => {
             if (typeof renderHistory === 'function') renderHistory(sessions);
         });
     }
 
-    // Mensagem de boas-vindas se chat vazio
     if (!hadChat || state.messages.length === 0) {
         const name = state.settings.userName || 'você';
         setTimeout(() => {
@@ -52,7 +62,6 @@ function init() {
     checkMidnightReset();
     scheduleCheckIn();
     if (typeof updateNotifStatus === 'function') updateNotifStatus();
-    if (typeof checkForUpdate === 'function') checkForUpdate();
 
     const vEl = document.getElementById('app-version-display');
     if (vEl) vEl.textContent = APP_VERSION;
@@ -61,8 +70,12 @@ function init() {
 // ============ STORAGE (LOCAL) ============
 function loadSettings() {
     try {
-        const s = localStorage.getItem('nexo_settings');
-        if (s) state.settings = { ...state.settings, ...JSON.parse(s) };
+        const s = localStorage.getItem(STORAGE_KEY);
+        if (s) {
+            const parsed = JSON.parse(s);
+            state.settings = { ...state.settings, ...parsed };
+        }
+        
         const apiInput = document.getElementById('apiKey');
         const intervalInput = document.getElementById('interval');
         const nameInput = document.getElementById('userName');
@@ -77,10 +90,118 @@ function loadSettings() {
     } catch (e) { }
 }
 
+function updateAuthButton() {
+    const btn = document.getElementById('auth-btn-sidebar');
+    const footer = document.getElementById('sidebar-footer-text');
+    if (state.settings.userPhone) {
+        if (btn) btn.innerHTML = '<span>👤</span> Perfil / Sair';
+        if (footer) footer.textContent = `Logado como: ${state.settings.userName}`;
+    } else {
+        if (btn) btn.innerHTML = '<span>🔑</span> Entrar / Cadastrar';
+        if (footer) footer.textContent = 'Modo Convidado';
+    }
+}
+
+function openAuthModal() {
+    const modal = document.getElementById('login-screen');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeAuthModal() {
+    const modal = document.getElementById('login-screen');
+    if (modal) modal.style.display = 'none';
+}
+
+function handleAuthClick() {
+    if (state.settings.userPhone) {
+        if (confirm('Deseja sair da sua conta?')) {
+            handleLogout();
+        }
+    } else {
+        openAuthModal();
+    }
+}
+
 function persistSettings() {
     try {
-        localStorage.setItem('nexo_settings', JSON.stringify(state.settings));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings));
     } catch (e) { }
+}
+
+function startNewChat() {
+    state.sessionId = Date.now().toString();
+    localStorage.setItem(SESSION_KEY, state.sessionId);
+    state.messages = [];
+    saveChatToday();
+    renderMessages();
+    const name = state.settings.userName || 'você';
+    addMessage('assistant', `Chat novo iniciado! 🚀 Como posso te ajudar agora, ${name}?`);
+    
+    if (typeof fetchHistoryFromDB === 'function') {
+        fetchHistoryFromDB().then(sessions => renderHistory(sessions));
+    }
+}
+
+function updateUserBadge() {
+    const badge = document.getElementById('user-role-badge');
+    const role = state.settings.userRole || 'free';
+    if (badge) {
+        badge.className = `badge-role role-${role}`;
+        badge.textContent = role;
+    }
+}
+
+function handleAuth() {
+    const nameInput = document.getElementById('reg-name');
+    const emailInput = document.getElementById('reg-email');
+    const phoneInput = document.getElementById('reg-phone');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const email = emailInput ? emailInput.value.trim() : '';
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+
+    if (!name || !email || !phone) {
+        showToast('Preencha os campos de cadastro!');
+        return;
+    }
+
+    state.settings.userName = name;
+    state.settings.userEmail = email;
+    state.settings.userPhone = phone;
+    
+    // Regra: por padrão qualquer cadastro é FREE
+    // Vira PAID ou ADMIN apenas se o número for específico (simulando banco de dados)
+    if (phone === '11999999999') state.settings.userRole = 'admin';
+    else if (phone === '11888888888') state.settings.userRole = 'paid';
+    else state.settings.userRole = 'free';
+
+    persistSettings();
+    closeAuthModal();
+    showToast(`Bem-vindo, ${name}!`);
+    updateUserBadge();
+    updateAuthButton();
+    
+    if (typeof fetchHistoryFromDB === 'function') {
+        fetchHistoryFromDB().then(sessions => renderHistory(sessions));
+    }
+}
+
+function handleLogout() {
+    state.settings.userPhone = '';
+    state.settings.userEmail = '';
+    state.settings.userRole = 'free';
+    state.settings.userName = 'você';
+    persistSettings();
+    updateUserBadge();
+    updateAuthButton();
+    showToast('Você saiu.');
+}
+
+function continueAsGuest() {
+    closeAuthModal();
+    showToast('Modo Convidado ativado (Limite: 1 tarefa).');
+    updateUserBadge();
+    updateAuthButton();
 }
 
 function saveChatToday() {
@@ -155,8 +276,34 @@ async function sendMessage() {
     if (typeof updateStats === 'function') updateStats();
 }
 
+function startNewChat() {
+    state.sessionId = Date.now().toString();
+    localStorage.setItem('nexo_session_id', state.sessionId);
+    state.messages = [];
+    saveChatToday();
+    renderMessages();
+    const name = state.settings.userName || 'você';
+    addMessage('assistant', `Chat novo iniciado! 🚀 Como posso te ajudar agora, ${name}?`);
+    
+    // Atualiza o sidebar
+    if (typeof fetchHistoryFromDB === 'function') {
+        fetchHistoryFromDB().then(sessions => {
+            if (typeof renderHistory === 'function') renderHistory(sessions);
+        });
+    }
+}
+
 // ============ TASKS LOGIC ============
 async function addTask(text) {
+    // Regra FREE: limite de 1 tarefa
+    const isFree = !state.settings.userPhone || state.settings.userRole === 'free';
+    const activeTasks = state.tasks.filter(t => !t.done).length;
+    
+    if (isFree && activeTasks >= 1) {
+        addMessage('assistant', '⚠️ Você atingiu seu limite gratuito de 1 tarefa. Cadastre-se ou assine o plano Premium para gerenciar mais tarefas ao mesmo tempo!');
+        return;
+    }
+
     const tmpId = Date.now();
     const task = {
         id: tmpId,
