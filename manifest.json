@@ -1,0 +1,23 @@
+{
+  "name": "Nexo — Seu Parceiro de Foco",
+  "short_name": "Nexo",
+  "description": "Assistente inteligente para foco e organização com IA.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0a12",
+  "theme_color": "#7c6af7",
+  "icons": [
+    {
+      "src": "ico.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
