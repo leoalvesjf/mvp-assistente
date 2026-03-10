@@ -56,6 +56,21 @@ async function saveMessageToDB(role, content) {
   } catch (e) { console.warn('Erro ao salvar msg:', e); }
 }
 
+async function saveSubscriptionToDB(subscription) {
+  try {
+    const userPhone = state.settings.userPhone || 'anon';
+    await sbFetch('push_subscriptions', {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({ 
+        user_phone: userPhone, 
+        subscription: subscription,
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch (e) { console.error('Erro ao salvar subscription:', e); }
+}
+
 async function saveTaskToDB(text) {
   try {
     const res = await sbFetch('tasks', {

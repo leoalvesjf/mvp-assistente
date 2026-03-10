@@ -40,3 +40,33 @@ self.addEventListener('fetch', event => {
     })
   );
 });
+
+// Handle Push Notifications
+self.addEventListener('push', event => {
+  let data = { title: 'Nexo 🧠', body: 'Lembrete do seu assistente!' };
+  try {
+      if (event.data) data = event.data.json();
+  } catch(e) {}
+  
+  const options = {
+    body: data.body,
+    icon: './icon.png',
+    badge: './ico.png',
+    vibrate: [200, 100, 200],
+    data: {
+      url: './index.html'
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Handle notification click
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow(event.notification.data.url)
+  );
+});

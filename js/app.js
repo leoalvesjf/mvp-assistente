@@ -453,16 +453,35 @@ async function requestNotificationPermission() {
                 scheduleCheckIn();
             } else { showToast('⚠️ Notificações bloqueadas'); }
         } else {
-            if (!('Notification' in window)) { showToast('❌ Não suportado'); return; }
+            // WEB PWA FLOW
+            if (!('serviceWorker' in navigator)) { showToast('❌ Não suportado'); return; }
             const p = await Notification.requestPermission();
             notifGranted = p === 'granted';
             if (notifGranted) {
                 showToast('✅ Notificações ativadas!');
-                new Notification('Nexo ativado! 🧠', { body: 'Vou te mandar check-ins pra te manter focado.' });
+                subscribeUserToPush();
             } else { showToast('⚠️ Notificações bloqueadas'); }
         }
     } catch (e) { showToast('⚠️ Erro ao ativar notificações'); console.warn(e); }
     updateNotifStatus();
+}
+
+async function subscribeUserToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        // Aqui usaremos uma chave pública VAPID (placeholder por enquanto)
+        // Quando o usuário configurar o servidor, ele troca esta chave
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: 'BEl62vp95WZaD6CEvEn392_C4w8ot_O69Y6Tq3-xB-fJ-0G2Y3C-V5V-H-A' // Placeholder
+        });
+        
+        if (typeof saveSubscriptionToDB === 'function') {
+            await saveSubscriptionToDB(subscription);
+        }
+    } catch (e) { console.warn('Erro ao assinar Push:', e); }
 }
 
 async function sendNotification(title, body) {
