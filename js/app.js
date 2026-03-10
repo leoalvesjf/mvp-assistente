@@ -21,6 +21,7 @@ const SESSION_KEY = 'nexo_session_v2';
 
 let notifGranted = false;
 let notifId = 1;
+let deferredPrompt = null;
 
 // ============ INITIALIZATION ============
 function init() {
@@ -86,14 +87,13 @@ function loadSettings() {
 
         if (apiInput) apiInput.value = state.settings.apiKey || '';
         if (intervalInput) intervalInput.value = state.settings.interval || 60;
-        if (nameInput) nameInput.value = state.settings.userName || '';
         if (qStartInput) qStartInput.value = state.settings.quietStart ?? 8;
         if (qEndInput) qEndInput.value = state.settings.quietEnd ?? 22;
 
         // Regra: Esconder campo de API Key se for FREE
-        const apiRow = document.getElementById('apiKey')?.closest('.settings-row');
-        if (apiRow) {
-            apiRow.style.display = (state.settings.userRole === 'paid' || state.settings.userRole === 'admin') ? 'flex' : 'none';
+        const apiItem = document.getElementById('api-key-setting');
+        if (apiItem) {
+            apiItem.style.display = (state.settings.userRole === 'paid' || state.settings.userRole === 'admin') ? 'block' : 'none';
         }
     } catch (e) { }
 }
@@ -647,7 +647,28 @@ async function fetchAllTasks() {
     } catch (e) { return ''; }
 }
 
-// ============ START APP ============
+// ============ PWA INSTALLATION ============
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const btn = document.getElementById('install-pwa-btn');
+    if (btn) btn.style.display = 'flex';
+});
+
+const installBtn = document.getElementById('install-pwa-btn');
+if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                installBtn.style.display = 'none';
+            }
+            deferredPrompt = null;
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     init();
 });

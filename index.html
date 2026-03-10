@@ -75,9 +75,14 @@
       </div>
 
       <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">
-        <button id="auth-btn-sidebar" class="sidebar-item" onclick="handleAuthClick()" style="margin-bottom:8px">
-          <span>🔑</span> Entrar / Cadastrar
-        </button>
+        <div class="sidebar-footer">
+          <button class="sidebar-item" id="install-pwa-btn" style="display:none; color:var(--success); border:1px dashed var(--success); margin-bottom:10px">
+            <span>📲</span> Instalar Aplicativo
+          </button>
+          
+          <button class="sidebar-item" id="auth-btn-sidebar" onclick="handleAuthClick()">
+            <span id="auth-icon-sidebar">🔑</span> <span id="auth-text-sidebar">Entrar / Cadastrar</span>
+          </button>
         <div id="sidebar-footer-text" style="color:var(--text-dim);font-size:11px;padding:0 16px;margin-bottom:4px">Modo Convidado</div>
         <div style="color:var(--text-dim);font-size:11px;padding:0 16px">
           Nexo v<span id="app-version-display"></span>
@@ -154,11 +159,13 @@
           <div class="settings-container">
             <div class="section-title">Configurações</div>
             <div class="setting-group">
-              <div class="setting-item">
-                <div class="setting-icon">🔑</div>
+              <div class="setting-item" id="api-key-setting">
                 <div class="setting-info">
-                  <div class="setting-label">API Key Anthropic</div>
-                  <div class="setting-desc">Sua chave do Claude Haiku</div>
+                  <div class="setting-icon">🔑</div>
+                  <div class="setting-info-text">
+                    <div class="setting-label">API Key Anthropic</div>
+                    <div class="setting-desc">Sua chave do Claude Haiku</div>
+                  </div>
                 </div>
                 <div class="setting-control">
                   <input type="password" id="apiKey" placeholder="sk-ant-..." />

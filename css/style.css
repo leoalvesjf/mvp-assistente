@@ -10,6 +10,8 @@
   --text-dim: #7070a0;
   --danger: #f76a6a;
   --success: #6af7a2;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -246,7 +248,9 @@ body::before {
 .message.user { align-self: flex-end; }
 
 .chat-input-area {
-  padding: 16px; border-top: 1px solid var(--border);
+  padding: 16px; 
+  padding-bottom: calc(16px + var(--safe-bottom));
+  border-top: 1px solid var(--border);
   background: rgba(10,10,18,0.98);
 }
 .chat-input-row { display: flex; gap: 10px; }
@@ -291,5 +295,12 @@ body::before {
 @keyframes bounce { to { transform: translateY(-4px); } }
 
 /* Global helper classes */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px;
+  padding-bottom: calc(16px + var(--safe-bottom));
+  border-top: 1px solid var(--border);
+}
+
 .icon-btn { cursor: pointer; background: none; border: none; color: var(--text-dim); }
 .icon-btn:hover { color: var(--text); }
