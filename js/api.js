@@ -115,8 +115,8 @@ async function fetchHistoryFromDB() {
   try {
     const userPhone = state.settings.userPhone;
     if (!userPhone) return [];
-    // Busca últimas conversas do usuário
-    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&role=eq.user&order=created_at.desc&limit=20`);
+    // Busca últimas conversas do usuário que não foram deletadas
+    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&role=eq.user&is_deleted=neq.true&order=created_at.desc&limit=20`);
     if (!msgs?.length) return [];
 
     return msgs.map(m => ({
@@ -131,10 +131,22 @@ async function loadMessagesFromDB(sessionId) {
   try {
     const userPhone = state.settings.userPhone;
     if (!userPhone) return [];
-    // Por enquanto carregamos as últimas 50 sem filtrar por sessão (MVP)
-    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&order=created_at.desc&limit=50`);
+    // Carregamos mensagens que não foram deletadas
+    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&is_deleted=neq.true&order=created_at.asc&limit=50`);
     return msgs || [];
   } catch (e) { return []; }
+}
+
+async function deleteSessionHistory(sid) {
+  try {
+    const userPhone = state.settings.userPhone;
+    if (!userPhone) return;
+    // Soft delete: marca a sessão atual como deletada
+    await sbFetch(`conversations?user_phone=eq.${userPhone}&id=eq.${sid}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_deleted: true })
+    });
+  } catch (e) { console.warn('Erro ao deletar sessão:', e); }
 }
 
 // ============ PROFILES ============

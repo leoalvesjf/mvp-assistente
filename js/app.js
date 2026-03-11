@@ -403,6 +403,27 @@ function startNewChat() {
     }
 }
 
+async function deleteHistory(event, sid) {
+    if (event) event.stopPropagation();
+    if (!confirm('Deseja apagar esta conversa do histórico?')) return;
+    
+    try {
+        if (typeof deleteSessionHistory === 'function') {
+            await deleteSessionHistory(sid);
+            showToast('🗑 Conversa removida');
+            // Recarrega a lista
+            if (typeof fetchHistoryFromDB === 'function') {
+                const sessions = await fetchHistoryFromDB();
+                if (typeof renderHistory === 'function') renderHistory(sessions);
+            }
+            // Se a sessão apagada for a atual, limpa a tela
+            if (state.messages.length > 0) {
+                // Simplificação: se apagou algo, vamos apenas sugerir novo chat ou limpar se for o histórico antigo
+            }
+        }
+    } catch (e) { showToast('❌ Erro ao apagar'); }
+}
+
 // ============ TASKS LOGIC ============
 async function addTask(text) {
     // Regra FREE: limite de 1 tarefa ativa
@@ -541,6 +562,7 @@ async function requestNotificationPermission() {
                     notifications: [{ title: 'Nexo ativado! 🧠', body: 'Vou te mandar check-ins pra te manter focado.', id: notifId++, schedule: { at: new Date(Date.now() + 1000) } }]
                 });
                 scheduleCheckIn();
+                updateNotifStatus();
             } else { showToast('⚠️ Notificações bloqueadas'); }
         } else {
             // WEB PWA FLOW
@@ -731,6 +753,17 @@ function saveSettings() {
         state.settings.quietEnd = parseInt(document.getElementById('quietEnd').value);
         persistSettings();
         scheduleCheckIn();
+        
+        // Feedback visual no botão
+        const btn = event?.target || document.querySelector('#section-settings .save-btn');
+        if (btn) {
+            btn.classList.add('success');
+            btn.textContent = '✅ Configurações salvas!';
+            setTimeout(() => {
+                btn.classList.remove('success');
+                btn.textContent = '💾 Salvar configurações';
+            }, 2000);
+        }
         showToast('✅ Configurações salvas!');
     } catch (e) { 
         console.error('Erro ao salvar settings:', e);

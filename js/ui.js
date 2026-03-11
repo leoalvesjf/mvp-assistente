@@ -136,9 +136,11 @@ function renderHistory(sessions) {
     sessions.forEach(s => {
         const div = document.createElement('div');
         div.className = 'history-item';
-        div.innerHTML = `<span>💬</span> ${s.title}`;
+        div.innerHTML = `
+            <span class="title" onclick="loadPastSession('${s.id}')">💬 ${s.title}</span>
+            <button class="history-del" onclick="deleteHistory(event, '${s.id}')" title="Apagar conversa">🗑</button>
+        `;
         div.title = s.date;
-        div.onclick = () => loadPastSession(s.id);
         container.appendChild(div);
     });
 }
