@@ -682,7 +682,9 @@ async function sendNotification(title, body) {
                     body: body,
                     icon: './icon.png',
                     badge: './ico.png',
-                    vibrate: [200, 100, 200]
+                    vibrate: [200, 100, 200],
+                    tag: 'nexo-alert',
+                    renotify: true
                 });
             } else {
                 new Notification(title, { body });
