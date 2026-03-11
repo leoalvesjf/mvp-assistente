@@ -12,6 +12,11 @@ async function sbFetch(path, options = {}) {
     },
     ...(options.body ? { body: options.body } : {})
   });
+  if (!res.ok) {
+    const errText = await res.text();
+    console.warn(`sbFetch error ${res.status}:`, errText);
+    return null;
+  }
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
@@ -46,12 +51,10 @@ async function fetchYesterdayContext() {
 
 async function saveMessageToDB(role, content) {
   try {
-    const userPhone = state.settings.userPhone || 'anon';
-    const sessionId = state.sessionId || 'today';
     await sbFetch('conversations', {
       method: 'POST',
       prefer: 'return=minimal',
-      body: JSON.stringify({ role, content, user_phone: userPhone, session_id: sessionId })
+      body: JSON.stringify({ role, content })
     });
   } catch (e) { console.warn('Erro ao salvar msg:', e); }
 }
@@ -100,34 +103,21 @@ async function deleteTaskFromDB(dbId) {
 
 async function fetchHistoryFromDB() {
   try {
-    const userPhone = state.settings.userPhone;
-    if (!userPhone) return [];
-
-    // Busca conversas do usuário, agrupadas por session_id
-    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&order=created_at.desc&limit=100`);
+    // Busca últimas conversas do usuário
+    const msgs = await sbFetch('conversations?role=eq.user&order=created_at.desc&limit=20');
     if (!msgs?.length) return [];
 
-    const sessions = [];
-    const seenSessions = new Set();
-
-    msgs.forEach(m => {
-      const sid = m.session_id || 'legacy';
-      if (!seenSessions.has(sid) && m.role === 'user') {
-        seenSessions.add(sid);
-        sessions.push({
-          id: sid,
-          title: m.content.slice(0, 30) + (m.content.length > 30 ? '...' : ''),
-          date: new Date(m.created_at).toLocaleDateString('pt-BR')
-        });
-      }
-    });
-    return sessions;
+    return msgs.map(m => ({
+      id: m.id,
+      title: m.content.slice(0, 30) + (m.content.length > 30 ? '...' : ''),
+      date: new Date(m.created_at).toLocaleDateString('pt-BR')
+    }));
   } catch (e) { return []; }
 }
 
 async function loadMessagesFromDB(sessionId) {
   try {
-    const msgs = await sbFetch(`conversations?session_id=eq.${sessionId}&order=created_at.asc`);
+    const msgs = await sbFetch('conversations?order=created_at.desc&limit=50');
     return msgs || [];
   } catch (e) { return []; }
 }
