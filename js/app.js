@@ -543,7 +543,7 @@ async function scheduleCheckIn() {
     }
 
     state.checkInTimer = setInterval(async () => {
-        if (document.hidden) return;
+        // Removido if (document.hidden) para tentar rodar no background do mobile
         const hour = new Date().getHours();
         const qStart = state.settings.quietStart ?? 8;
         const qEnd = state.settings.quietEnd ?? 22;
