@@ -22,7 +22,22 @@ const SESSION_KEY = 'nexo_session_v2';
 let notifGranted = false;
 let notifId = 1;
 let deferredPrompt = null;
-let pwaNotifEnabled = localStorage.getItem('nexo_pwa_notif') === 'true';
+let pwaNotifEnabled = localStorage.getItem('nexo_pwa_notif') === 'true' || localStorage.getItem('nexo_notif_granted') === 'true';
+
+// Debug logs storage
+const consoleLogs = [];
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+console.log = (...args) => { consoleLogs.push(`[LOG] ${args.join(' ')}`); originalConsoleLog.apply(console, args); };
+console.warn = (...args) => { consoleLogs.push(`[WARN] ${args.join(' ')}`); originalConsoleWarn.apply(console, args); };
+console.error = (...args) => { consoleLogs.push(`[ERROR] ${args.join(' ')}`); originalConsoleError.apply(console, args); };
+
+function copyDebugLogs() {
+    const text = consoleLogs.join('\n');
+    navigator.clipboard.writeText(text).then(() => showToast('📋 Logs copiados! Envie para o dev.'));
+}
 
 // ============ INITIALIZATION ============
 function init() {
@@ -539,7 +554,7 @@ async function scheduleCheckIn() {
 
 // ============ NOTIFICATIONS LOGIC ============
 async function requestNotificationPermission() {
-    showToast('⏳ Solicitando permissão...');
+    // No PWA, precisamos que a chamada seja bem direta após o clique
     try {
         if (isNative()) {
             const { LocalNotifications } = window.Capacitor.Plugins;
@@ -551,19 +566,23 @@ async function requestNotificationPermission() {
                     notifications: [{ title: 'Nexo ativado! 🧠', body: 'Vou te mandar check-ins pra te manter focado.', id: notifId++, schedule: { at: new Date(Date.now() + 1000) } }]
                 });
                 scheduleCheckIn();
-                updateNotifStatus();
             } else { showToast('⚠️ Notificações bloqueadas'); }
         } else {
             // WEB PWA FLOW
-            if (!('serviceWorker' in navigator)) { showToast('❌ Não suportado'); return; }
+            if (!('Notification' in window)) { showToast('❌ Navegador não suporta notificações'); return; }
+            
             const p = await Notification.requestPermission();
             notifGranted = p === 'granted';
             if (notifGranted) {
+                localStorage.setItem('nexo_notif_granted', 'true');
                 showToast('✅ Notificações ativadas!');
-                subscribeUserToPush();
+                subscribeUserToPush(); // Tenta push, mas ja marca como granted
             } else { showToast('⚠️ Notificações bloqueadas'); }
         }
-    } catch (e) { showToast('⚠️ Erro ao ativar notificações'); console.warn(e); }
+    } catch (e) { 
+        showToast('⚠️ Erro ao ativar notificações'); 
+        console.error('Erro em requestPermission:', e); 
+    }
     updateNotifStatus();
 }
 
@@ -650,10 +669,21 @@ async function sendNotification(title, body) {
                     schedule: { at: new Date(Date.now() + 500) } 
                 }]
             });
-        } else if (!isNative() && Notification.permission === 'granted' && document.hidden) {
-            new Notification(title, { body });
+        } else if (!isNative() && (Notification.permission === 'granted' || pwaNotifEnabled)) {
+            // Tenta via Service Worker para maior compatibilidade mobile
+            if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification(title, {
+                    body: body,
+                    icon: './icon.png',
+                    badge: './ico.png',
+                    vibrate: [200, 100, 200]
+                });
+            } else {
+                new Notification(title, { body });
+            }
         }
-    } catch (e) { console.warn('Erro notif:', e); }
+    } catch (e) { console.warn('Erro sendNotification:', e); }
 }
 
 async function createNotificationChannel() {

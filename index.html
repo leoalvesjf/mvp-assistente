@@ -234,8 +234,14 @@
             <div style="margin-top:24px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:16px">
               <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;margin-bottom:8px;color:var(--accent)">🔄 Atualização</div>
               <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Versão instalada: <strong id="cfg-version"></strong></div>
-              <button class="save-btn" onclick="manualCheckUpdate()" id="update-btn" style="width:100%;margin:0">Verificar atualização</button>
+              <div style="display:flex;gap:8px">
+                <button class="save-btn" onclick="manualCheckUpdate()" id="update-btn" style="flex:1;margin:0">Verificar atualização</button>
+                <button class="save-btn" onclick="copyDebugLogs()" style="width:50px;margin:0;font-size:16px" title="Debug">📋</button>
+              </div>
               <div id="update-status" style="font-size:12px;color:var(--text-dim);margin-top:8px;text-align:center"></div>
+              <div style="font-size:10px;color:var(--text-dim);margin-top:12px;text-align:center;border-top:1px solid var(--border);padding-top:8px">
+                Leo e Antigravity @ 2026
+              </div>
             </div>
           </div>
         </div>
