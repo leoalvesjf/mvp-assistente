@@ -23,7 +23,9 @@ async function sbFetch(path, options = {}) {
 
 async function loadTasksFromDB() {
   try {
-    const tasks = await sbFetch('tasks?done=eq.false&order=created_at.asc');
+    const userPhone = state.settings.userPhone;
+    if (!userPhone) return;
+    const tasks = await sbFetch(`tasks?user_phone=eq.${userPhone}&done=eq.false&order=created_at.asc`);
     if (tasks?.length) {
       state.tasks = tasks.map(t => ({
         id: t.id,
@@ -32,6 +34,8 @@ async function loadTasksFromDB() {
         done: t.done,
         time: new Date(t.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       }));
+    } else {
+      state.tasks = []; // Limpa se não houver tarefas para este usuário
     }
   } catch (e) {
     console.warn('Erro ao carregar tarefas:', e);
@@ -40,10 +44,12 @@ async function loadTasksFromDB() {
 
 async function fetchYesterdayContext() {
   try {
+    const userPhone = state.settings.userPhone;
+    if (!userPhone) return '';
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().slice(0, 10);
-    const msgs = await sbFetch(`conversations?created_at=gte.${dateStr}T00:00:00&order=created_at.desc&limit=15`);
+    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&created_at=gte.${dateStr}T00:00:00&order=created_at.desc&limit=15`);
     if (!msgs?.length) return 'Nenhuma conversa registrada ontem.';
     return msgs.reverse().map(m => `${m.role === 'user' ? 'Você' : 'Nexo'}: ${m.content}`).join('\n');
   } catch (e) { return ''; }
@@ -51,10 +57,11 @@ async function fetchYesterdayContext() {
 
 async function saveMessageToDB(role, content) {
   try {
+    const userPhone = state.settings.userPhone;
     await sbFetch('conversations', {
       method: 'POST',
       prefer: 'return=minimal',
-      body: JSON.stringify({ role, content })
+      body: JSON.stringify({ role, content, user_phone: userPhone })
     });
   } catch (e) { console.warn('Erro ao salvar msg:', e); }
 }
@@ -76,10 +83,11 @@ async function saveSubscriptionToDB(subscription) {
 
 async function saveTaskToDB(text) {
   try {
+    const userPhone = state.settings.userPhone;
     const res = await sbFetch('tasks', {
       method: 'POST',
       prefer: 'return=representation',
-      body: JSON.stringify({ text, done: false })
+      body: JSON.stringify({ text, done: false, user_phone: userPhone })
     });
     return res?.[0]?.id;
   } catch (e) { console.warn('Erro ao salvar tarefa:', e); }
@@ -87,7 +95,8 @@ async function saveTaskToDB(text) {
 
 async function updateTaskInDB(dbId, done) {
   try {
-    await sbFetch(`tasks?id=eq.${dbId}`, {
+    const userPhone = state.settings.userPhone;
+    await sbFetch(`tasks?id=eq.${dbId}&user_phone=eq.${userPhone}`, {
       method: 'PATCH',
       prefer: 'return=minimal',
       body: JSON.stringify({ done })
@@ -97,14 +106,17 @@ async function updateTaskInDB(dbId, done) {
 
 async function deleteTaskFromDB(dbId) {
   try {
-    await sbFetch(`tasks?id=eq.${dbId}`, { method: 'DELETE' });
+    const userPhone = state.settings.userPhone;
+    await sbFetch(`tasks?id=eq.${dbId}&user_phone=eq.${userPhone}`, { method: 'DELETE' });
   } catch (e) { console.warn('Erro ao deletar tarefa:', e); }
 }
 
 async function fetchHistoryFromDB() {
   try {
+    const userPhone = state.settings.userPhone;
+    if (!userPhone) return [];
     // Busca últimas conversas do usuário
-    const msgs = await sbFetch('conversations?role=eq.user&order=created_at.desc&limit=20');
+    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&role=eq.user&order=created_at.desc&limit=20`);
     if (!msgs?.length) return [];
 
     return msgs.map(m => ({
@@ -117,9 +129,36 @@ async function fetchHistoryFromDB() {
 
 async function loadMessagesFromDB(sessionId) {
   try {
-    const msgs = await sbFetch('conversations?order=created_at.desc&limit=50');
+    const userPhone = state.settings.userPhone;
+    if (!userPhone) return [];
+    // Por enquanto carregamos as últimas 50 sem filtrar por sessão (MVP)
+    const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&order=created_at.desc&limit=50`);
     return msgs || [];
   } catch (e) { return []; }
+}
+
+// ============ PROFILES ============
+async function upsertProfile(data) {
+  try {
+    await sbFetch('profiles', {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({
+        phone: data.phone,
+        name: data.name,
+        email: data.email,
+        role: data.role || 'free',
+        created_at: new Date().toISOString()
+      })
+    });
+  } catch (e) { console.error('Erro ao salvar perfil:', e); }
+}
+
+async function getProfile(phone) {
+  try {
+    const res = await sbFetch(`profiles?phone=eq.${phone}`);
+    return res?.[0] || null;
+  } catch (e) { return null; }
 }
 
 // ============ AI CALL (CLAUDE via Vercel Proxy) ============
@@ -181,7 +220,7 @@ Máximo 3-4 frases.`;
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system, messages })
+      body: JSON.stringify({ system, messages, userPhone: state.settings.userPhone })
     });
 
     const data = await response.json();
@@ -192,14 +231,17 @@ Máximo 3-4 frases.`;
       return callClaude(userMessage, systemExtra, retries - 1);
     }
 
-    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    if (data.error) {
+      // Se a API retornar uma mensagem amigável, usamos ela
+      throw new Error(data.message || data.error.message || data.error || 'Erro desconhecido');
+    }
     const text = data.content?.map(b => b.text || '').join('');
     const taskMatch = text.match(/\[TAREFA:\s*(.+?)\]/);
     if (taskMatch) addTask(taskMatch[1].trim());
     return text.replace(/\[TAREFA:.*?\]/g, '').trim();
   } catch (err) {
     console.error('NEXO_ERROR', JSON.stringify({ msg: err.message, stack: err.stack }));
-    return `Tive um erro ao falar com o servidor. Verifique sua internet!`;
+    return `⚠️ ${err.message}`;
   }
 }
 

@@ -35,9 +35,13 @@ function init() {
         persistSettings();
     }
 
-    // App abre sempre direto, modal de login é opcional
-    const loginScreen = document.getElementById('login-screen');
-    if (loginScreen) loginScreen.style.display = 'none';
+    // Forçar login se não houver telefone
+    if (!state.settings.userPhone) {
+        openAuthModal();
+    } else {
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) loginScreen.style.display = 'none';
+    }
     
     updateUserBadge();
     updateAuthButton();
@@ -107,7 +111,15 @@ function updateAuthButton() {
 
 function openAuthModal() {
     const modal = document.getElementById('login-screen');
+    const closeBtn = document.getElementById('close-auth-btn');
     if (modal) modal.style.display = 'flex';
+    
+    // Se não está logado, não pode fechar o modal
+    if (!state.settings.userPhone && closeBtn) {
+        closeBtn.style.display = 'none';
+    } else if (closeBtn) {
+        closeBtn.style.display = 'block';
+    }
 }
 
 function closeAuthModal() {
@@ -154,7 +166,7 @@ function updateUserBadge() {
     }
 }
 
-function handleAuth() {
+async function handleAuth() {
     const nameInput = document.getElementById('reg-name');
     const emailInput = document.getElementById('reg-email');
     const phoneInput = document.getElementById('reg-phone');
@@ -168,24 +180,39 @@ function handleAuth() {
         return;
     }
 
-    state.settings.userName = name;
-    state.settings.userEmail = email;
-    state.settings.userPhone = phone;
+    showToast('🚀 Autenticando...');
+
+    // Busca perfil se já existir
+    let profile = await getProfile(phone);
     
-    // Regra: por padrão qualquer cadastro é FREE
-    // Vira PAID ou ADMIN apenas se o número for específico (simulando banco de dados)
-    if (phone === '11999999999') state.settings.userRole = 'admin';
-    else if (phone === '11888888888') state.settings.userRole = 'paid';
-    else state.settings.userRole = 'free';
+    if (!profile) {
+        // Novo usuário
+        profile = {
+            phone,
+            name,
+            email,
+            role: 'free'
+        };
+        await upsertProfile(profile);
+    }
+
+    state.settings.userName = profile.name;
+    state.settings.userEmail = profile.email;
+    state.settings.userPhone = profile.phone;
+    state.settings.userRole = profile.role;
 
     persistSettings();
     closeAuthModal();
-    showToast(`Bem-vindo, ${name}!`);
+    showToast(`Bem-vindo, ${profile.name}!`);
     updateUserBadge();
     updateAuthButton();
     
+    // Sincronizar dados
+    if (typeof loadTasksFromDB === 'function') await loadTasksFromDB();
+    if (typeof renderTasks === 'function') renderTasks();
     if (typeof fetchHistoryFromDB === 'function') {
-        fetchHistoryFromDB().then(sessions => renderHistory(sessions));
+        const sessions = await fetchHistoryFromDB();
+        if (typeof renderHistory === 'function') renderHistory(sessions);
     }
 }
 
@@ -201,10 +228,8 @@ function handleLogout() {
 }
 
 function continueAsGuest() {
-    closeAuthModal();
-    showToast('Modo Convidado ativado (Limite: 1 tarefa).');
-    updateUserBadge();
-    updateAuthButton();
+    showToast('⚠️ O login é obrigatório para usar o Nexo.');
+    openAuthModal();
 }
 
 function saveChatToday() {
