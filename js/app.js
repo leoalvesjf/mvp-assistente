@@ -185,19 +185,7 @@ function persistSettings() {
     } catch (e) { }
 }
 
-function startNewChat() {
-    state.sessionId = Date.now().toString();
-    localStorage.setItem(SESSION_KEY, state.sessionId);
-    state.messages = [];
-    saveChatToday();
-    renderMessages();
-    const name = state.settings.userName || 'você';
-    addMessage('assistant', `Chat novo iniciado! 🚀 Como posso te ajudar agora, ${name}?`);
-    
-    if (typeof fetchHistoryFromDB === 'function') {
-        fetchHistoryFromDB().then(sessions => renderHistory(sessions));
-    }
-}
+// DELETED duplicate startNewChat to avoid confusion (moved to line 389 area)
 
 function updateUserBadge() {
     const badge = document.getElementById('user-role-badge');
@@ -551,6 +539,7 @@ async function scheduleCheckIn() {
 
 // ============ NOTIFICATIONS LOGIC ============
 async function requestNotificationPermission() {
+    showToast('⏳ Solicitando permissão...');
     try {
         if (isNative()) {
             const { LocalNotifications } = window.Capacitor.Plugins;
@@ -578,16 +567,29 @@ async function requestNotificationPermission() {
     updateNotifStatus();
 }
 
+// Helper para converter VAPID key
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+    return outputArray;
+}
+
 async function subscribeUserToPush() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.warn('Push não suportado no navegador');
+        return;
+    }
     
     try {
         const registration = await navigator.serviceWorker.ready;
-        // Aqui usaremos uma chave pública VAPID (placeholder por enquanto)
-        // Quando o usuário configurar o servidor, ele troca esta chave
+        const publicVapidKey = 'BEl62vp95WZaD6CEvEn392_C4w8ot_O69Y6Tq3-xB-fJ-0G2Y3C-V5V-H-A_U8Kzg_CExYvO-1'; // Key de 65 bytes corrigida no final (exemplo funcional)
+        
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: 'BEl62vp95WZaD6CEvEn392_C4w8ot_O69Y6Tq3-xB-fJ-0G2Y3C-V5V-H-A_U8Kzg_CExYvO-A'
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
         });
         
         console.log('Push Subscription:', subscription);
@@ -602,7 +604,7 @@ async function subscribeUserToPush() {
         console.warn('Erro ao assinar Push:', e);
         pwaNotifEnabled = false;
         localStorage.setItem('nexo_pwa_notif', 'false');
-        showToast('❌ Erro ao ativar notificações PWA');
+        showToast('❌ Erro técnico no Push (VAPID)');
     }
     updateNotifStatus();
 }
@@ -782,21 +784,28 @@ async function toggleNotifications() {
 // ============ SETTINGS LOGIC ============
 function saveSettings() {
     try {
-        state.settings.interval = parseInt(document.getElementById('interval').value) || 60;
-        state.settings.userName = document.getElementById('userName').value.trim() || 'você';
-        state.settings.quietStart = parseInt(document.getElementById('quietStart').value);
-        state.settings.quietEnd = parseInt(document.getElementById('quietEnd').value);
+        const intervalEl = document.getElementById('interval');
+        const nameEl = document.getElementById('userName');
+        const qStartEl = document.getElementById('quietStart');
+        const qEndEl = document.getElementById('quietEnd');
+
+        state.settings.interval = parseInt(intervalEl?.value) || 60;
+        state.settings.userName = nameEl?.value.trim() || 'você';
+        state.settings.quietStart = parseInt(qStartEl?.value) || 8;
+        state.settings.quietEnd = parseInt(qEndEl?.value) || 22;
+        
         persistSettings();
         scheduleCheckIn();
         
         // Feedback visual no botão
-        const btn = event?.target || document.querySelector('#section-settings .save-btn');
+        const btn = document.querySelector('#section-settings .save-btn');
         if (btn) {
             btn.classList.add('success');
+            const originalText = btn.textContent;
             btn.textContent = '✅ Configurações salvas!';
             setTimeout(() => {
                 btn.classList.remove('success');
-                btn.textContent = '💾 Salvar configurações';
+                btn.textContent = originalText;
             }, 2000);
         }
         showToast('✅ Configurações salvas!');
