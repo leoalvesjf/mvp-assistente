@@ -9,7 +9,8 @@ let state = {
         userPhone: '',
         userEmail: '',
         quietStart: 8,
-        quietEnd: 22
+        quietEnd: 22,
+        quietEnabled: false
     },
     checkInTimer: null,
     isTyping: false,
@@ -104,11 +105,13 @@ function loadSettings() {
         const nameInput = document.getElementById('userName');
         const qStartInput = document.getElementById('quietStart');
         const qEndInput = document.getElementById('quietEnd');
+        const qEnabledInput = document.getElementById('quietEnabled');
 
         if (intervalInput) intervalInput.value = state.settings.interval || 60;
         if (nameInput) nameInput.value = state.settings.userName || '';
         if (qStartInput) qStartInput.value = state.settings.quietStart ?? 8;
         if (qEndInput) qEndInput.value = state.settings.quietEnd ?? 22;
+        if (qEnabledInput) qEnabledInput.checked = !!state.settings.quietEnabled;
     } catch (e) { }
 }
 
@@ -518,7 +521,8 @@ async function scheduleCheckIn() {
                 const hour = at.getHours();
                 const qStart = state.settings.quietStart ?? 8;
                 const qEnd = state.settings.quietEnd ?? 22;
-                if (hour < qStart || hour >= qEnd) continue;
+                const qEnabled = !!state.settings.quietEnabled;
+                if (qEnabled && (hour < qStart || hour >= qEnd)) continue;
                 let body;
                 if (hour < 12) body = `Oi ${name}! ☀️ Como tá a manhã?`;
                 else if (hour < 18) body = `E aí ${name}! 🌤️ Como tão as coisas?`;
@@ -543,7 +547,8 @@ async function scheduleCheckIn() {
         const hour = new Date().getHours();
         const qStart = state.settings.quietStart ?? 8;
         const qEnd = state.settings.quietEnd ?? 22;
-        if (hour < qStart || hour >= qEnd) return;
+        const qEnabled = !!state.settings.quietEnabled;
+        if (qEnabled && (hour < qStart || hour >= qEnd)) return;
         let checkIn;
         if (hour < 12) checkIn = `Oi ${name}! ☀️ Como tá a manhã? O que você tá fazendo agora?`;
         else if (hour < 18) checkIn = `E aí ${name}! 🌤️ Já é tarde, como tão as coisas?`;
@@ -821,9 +826,9 @@ function saveSettings() {
 
         state.settings.interval = parseInt(intervalEl?.value) || 60;
         state.settings.userName = nameEl?.value.trim() || 'você';
-        state.settings.quietStart = parseInt(qStartEl?.value) || 8;
-        state.settings.quietEnd = parseInt(qEndEl?.value) || 22;
-        
+        state.settings.quietStart = parseInt(document.getElementById('quietStart')?.value) || 8;
+        state.settings.quietEnd = parseInt(document.getElementById('quietEnd')?.value) || 22;
+        state.settings.quietEnabled = document.getElementById('quietEnabled')?.checked || false;
         persistSettings();
         scheduleCheckIn();
         
