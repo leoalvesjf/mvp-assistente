@@ -149,6 +149,21 @@ async function deleteSessionHistory(sid) {
   } catch (e) { console.warn('Erro ao deletar sessão:', e); }
 }
 
+async function saveSubscriptionToDB(subscription) {
+  try {
+    const userPhone = state.settings.userPhone;
+    if (!userPhone) return;
+    await sbFetch('push_subscriptions', {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates',
+      body: JSON.stringify({
+        user_phone: userPhone,
+        subscription: JSON.stringify(subscription)
+      })
+    });
+  } catch (e) { console.warn('Erro ao salvar subscription:', e); }
+}
+
 // ============ PROFILES ============
 async function upsertProfile(data) {
   try {

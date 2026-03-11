@@ -201,8 +201,9 @@
                     <div class="setting-label">Push notifications</div>
                     <div class="setting-desc" id="notif-status">Clique para ativar</div>
                   </div>
-                  <div class="setting-control">
+                  <div class="setting-control" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
                     <button class="save-btn" id="notif-btn" style="margin:0;min-width:100px;padding:8px 12px;font-size:12px" onclick="toggleNotifications()">Ativar</button>
+                    <button class="save-btn" id="notif-test-btn" style="margin:0;min-width:100px;padding:8px 12px;font-size:12px;display:none;background:rgba(var(--accent-rgb),0.1);border-color:var(--accent)" onclick="sendTestNotification()">Enviar teste</button>
                   </div>
                 </div>
                 <div class="setting-item">

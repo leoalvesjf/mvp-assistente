@@ -591,11 +591,12 @@ async function subscribeUserToPush() {
         });
         
         console.log('Push Subscription:', subscription);
+        pwaNotifEnabled = true;
+        localStorage.setItem('nexo_pwa_notif', 'true');
+        showToast('🔔 Notificações PWA preparadas!');
+        
         if (typeof saveSubscriptionToDB === 'function') {
             await saveSubscriptionToDB(subscription);
-            pwaNotifEnabled = true;
-            localStorage.setItem('nexo_pwa_notif', 'true');
-            showToast('🔔 Notificações PWA ativadas!');
         }
     } catch (e) { 
         console.warn('Erro ao assinar Push:', e);
@@ -604,6 +605,34 @@ async function subscribeUserToPush() {
         showToast('❌ Erro ao ativar notificações PWA');
     }
     updateNotifStatus();
+}
+
+async function sendTestNotification() {
+    showToast('🚀 Enviando notificação de teste...');
+    const title = 'Teste do Nexo 🧠';
+    const body = 'Seu assistente está pronto para te ajudar a manter o foco!';
+    
+    if (isNative()) {
+        await sendNotification(title, body);
+    } else {
+        // PWA Test: tenta via service worker ou API nativa
+        try {
+            if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                reg.showNotification(title, {
+                    body: body,
+                    icon: './icon.png',
+                    badge: './ico.png',
+                    vibrate: [200, 100, 200]
+                });
+            } else {
+                new Notification(title, { body });
+            }
+        } catch (e) {
+            console.error('Erro no teste PWA:', e);
+            showToast('❌ Erro no teste. Verifique as permissões.');
+        }
+    }
 }
 
 async function sendNotification(title, body) {
@@ -686,14 +715,18 @@ function updateNotifStatus() {
     const pwaActive = !isNative() && pwaNotifEnabled && (typeof Notification !== 'undefined' && Notification.permission === 'granted');
     const granted = isNative() ? notifGranted : pwaActive;
 
+    const testBtn = document.getElementById('notif-test-btn');
+
     if (!el) return;
     if (!('Notification' in window) && !isNative()) {
         el.textContent = 'Não suportado';
         if (btn) { btn.textContent = 'Ativar'; btn.style.opacity = '0.5'; }
+        if (testBtn) testBtn.style.display = 'none';
         return;
     }
     if (granted) {
         el.textContent = '✅ Ativadas';
+        if (testBtn) testBtn.style.display = 'block';
         if (btn) {
             btn.textContent = 'Desativar';
             btn.style.background = 'rgba(247,106,106,0.15)';
@@ -703,8 +736,10 @@ function updateNotifStatus() {
     } else if (!isNative() && Notification.permission === 'denied') {
         el.textContent = '❌ Bloqueadas';
         if (btn) { btn.textContent = 'Bloqueado'; btn.style.opacity = '0.5'; }
+        if (testBtn) testBtn.style.display = 'none';
     } else {
         el.textContent = 'Clique para ativar';
+        if (testBtn) testBtn.style.display = 'none';
         if (btn) {
             btn.textContent = 'Ativar';
             btn.style.background = '';
