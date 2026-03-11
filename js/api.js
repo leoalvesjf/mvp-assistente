@@ -62,8 +62,8 @@ async function saveSubscriptionToDB(subscription) {
     await sbFetch('push_subscriptions', {
       method: 'POST',
       prefer: 'resolution=merge-duplicates',
-      body: JSON.stringify({ 
-        user_phone: userPhone, 
+      body: JSON.stringify({
+        user_phone: userPhone,
         subscription: subscription,
         updated_at: new Date().toISOString()
       })
@@ -102,14 +102,14 @@ async function fetchHistoryFromDB() {
   try {
     const userPhone = state.settings.userPhone;
     if (!userPhone) return [];
-    
+
     // Busca conversas do usuário, agrupadas por session_id
     const msgs = await sbFetch(`conversations?user_phone=eq.${userPhone}&order=created_at.desc&limit=100`);
     if (!msgs?.length) return [];
-    
+
     const sessions = [];
     const seenSessions = new Set();
-    
+
     msgs.forEach(m => {
       const sid = m.session_id || 'legacy';
       if (!seenSessions.has(sid) && m.role === 'user') {
@@ -135,21 +135,21 @@ async function loadMessagesFromDB(sessionId) {
 // ============ AI CALL (CLAUDE) ============
 async function callClaude(userMessage, systemExtra = '', retries = 2) {
   const isPaid = state.settings.userRole === 'paid' || state.settings.userRole === 'admin';
-  
+
   if (!isPaid) {
-     const userMsgCount = state.messages.filter(m => m.role === 'user').length;
-     if (userMsgCount >= 5) {
-        return "⚠️ Você atingiu seu limite gratuito de mensagens. **Assine o plano Premium** para conversas ilimitadas e produtividade sem limites!";
-     }
+    const userMsgCount = state.messages.filter(m => m.role === 'user').length;
+    if (userMsgCount >= 5) {
+      return "⚠️ Você atingiu seu limite gratuito de mensagens. **Assine o plano Premium** para conversas ilimitadas e produtividade sem limites!";
+    }
   }
 
   const name = state.settings.userName || 'você';
   const pendingTasks = state.tasks.filter(t => !t.done).map(t => `- ${t.text}`).join('\n') || 'nenhuma';
-  
+
   // Se tem key local (Usuario Pago que quer usar a propria), usa Direto.
   // Senão, usa o Proxy Seguro do Supabase (Edge Function)
   const userKey = state.settings.apiKey;
-  
+
   if (!userKey) {
     // CHAMADA VIA EDGE FUNCTION (SEGURO)
     return await callClaudeViaProxy(userMessage, systemExtra, name, pendingTasks);
@@ -237,20 +237,30 @@ Máximo 3-4 frases.`;
 }
 async function callClaudeViaProxy(message, extra, name, tasks) {
   try {
-    const { data, error } = await supabase.functions.invoke('nexo-chat', {
-        body: { 
-            message, 
-            history: state.messages.slice(-5), 
-            userName: name,
-            tasks: tasks,
-            extra: extra
-        }
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/nexo-chat`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message,
+        history: state.messages.slice(-5),
+        userName: name,
+        tasks: tasks,
+        extra: extra
+      })
     });
 
-    if (error) throw error;
+    if (!res.ok) {
+      const errBody = await res.text();
+      throw new Error(`HTTP error! status: ${res.status} - ${errBody}`);
+    }
+    const data = await res.json();
     return data && data.reply ? data.reply : "O Nexo está meditando agora... tente mandar a mensagem de novo.";
   } catch (e) {
     console.error('Erro no Proxy:', e);
-    return "Tive um erro ao falar com o servidor. Verifique sua internet!";
+    return `Tive um erro ao falar com o servidor. Detalhe: ${e.message}`;
   }
 }
