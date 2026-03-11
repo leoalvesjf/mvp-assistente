@@ -22,7 +22,9 @@ body {
   color: var(--text);
   min-height: 100vh;
   min-height: -webkit-fill-available;
-  overflow: hidden; /* Prevent body scroll, use container scroll */
+  /* Allow scroll for mobile keyboard fallback */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Background animated mesh */
@@ -49,7 +51,7 @@ body::before {
 #app {
   position: relative;
   z-index: 1;
-  max-width: 480px;
+  width: 100%;
   margin: 0 auto;
   min-height: 100vh;
   display: block;
@@ -252,6 +254,9 @@ body::before {
   padding-bottom: calc(16px + var(--safe-bottom));
   border-top: 1px solid var(--border);
   background: rgba(10,10,18,0.98);
+  /* Ensure it stays above keyboard if possible */
+  position: sticky;
+  bottom: 0;
 }
 .chat-input-row { display: flex; gap: 10px; }
 .chat-input {

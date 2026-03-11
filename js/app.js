@@ -346,8 +346,18 @@ function addMessage(role, content, save = true) {
     state.messages.push(msg);
     if (typeof renderMessages === 'function') renderMessages();
     if (save) {
-        saveChatToday();
-        if (role === 'user' && typeof saveMessageToDB === 'function') saveMessageToDB(role, content);
+    setTimeout(() => {
+        const messagesContainer = document.getElementById('messages');
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            // Garantir que o último elemento seja visível no Android
+            const lastMsg = messagesContainer.lastElementChild;
+            if (lastMsg) lastMsg.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    }, 100);
+    
+    saveChatToday();
+    if (role === 'user' && typeof saveMessageToDB === 'function') saveMessageToDB(role, content);
     }
     return msg;
 }
@@ -367,6 +377,7 @@ async function sendMessage() {
     if (typeof hideTyping === 'function') hideTyping();
     state.isTyping = false;
     if (sendBtn) sendBtn.disabled = false;
+    
     if (response) {
         addMessage('assistant', response);
         if (typeof sendNotification === 'function') sendNotification('Nexo', response.slice(0, 80) + '...');
@@ -377,7 +388,7 @@ async function sendMessage() {
 
 function startNewChat() {
     state.sessionId = Date.now().toString();
-    localStorage.setItem('nexo_session_id', state.sessionId);
+    localStorage.setItem(SESSION_KEY, state.sessionId);
     state.messages = [];
     saveChatToday();
     renderMessages();
@@ -598,14 +609,15 @@ async function createNotificationChannel() {
         const { LocalNotifications } = window.Capacitor.Plugins;
         await LocalNotifications.createChannel({
             id: 'nexo_alerts',
-            name: 'Alertas do Nexo',
-            description: 'Notificações de foco e lembretes',
-            importance: 5, // Max importance
+            name: 'Check-ins do Nexo',
+            description: 'Canal para alertas de foco e produtividade',
+            importance: 5, // High importance for sound/popup
             visibility: 1,
-            sound: 'default',
+            sound: 'beep.wav', // Opcional: referenciar som nativo
             vibration: true
         });
-    } catch (e) {}
+        console.log('Canal de notificação Nexo criado/verificado');
+    } catch (e) { console.warn('Erro ao criar canal:', e); }
 }
 
 async function checkNotificationPermissions() {
