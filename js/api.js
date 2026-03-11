@@ -122,7 +122,7 @@ async function loadMessagesFromDB(sessionId) {
   } catch (e) { return []; }
 }
 
-// ============ AI CALL (CLAUDE) ============
+// ============ AI CALL (CLAUDE via Vercel Proxy) ============
 async function callClaude(userMessage, systemExtra = '', retries = 2) {
   const isPaid = state.settings.userRole === 'paid' || state.settings.userRole === 'admin';
 
@@ -136,16 +136,6 @@ async function callClaude(userMessage, systemExtra = '', retries = 2) {
   const name = state.settings.userName || 'você';
   const pendingTasks = state.tasks.filter(t => !t.done).map(t => `- ${t.text}`).join('\n') || 'nenhuma';
 
-  // Se tem key local (Usuario Pago que quer usar a propria), usa Direto.
-  // Senão, usa o Proxy Seguro do Supabase (Edge Function)
-  const userKey = state.settings.apiKey;
-
-  if (!userKey) {
-    // CHAMADA VIA EDGE FUNCTION (SEGURO)
-    return await callClaudeViaProxy(userMessage, systemExtra, name, pendingTasks);
-  }
-
-  // CHAMADA DIRETA (LEGADO/USUARIO PAGO COM KEY PROPRIA)
   let extraContext = '';
   if (needsHistorySearch(userMessage)) {
     showToast('🔍 Buscando histórico...');
@@ -188,26 +178,13 @@ Máximo 3-4 frases.`;
   messages.push({ role: 'user', content: userMessage });
 
   try {
-    let data;
-    if (isNative()) {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, system, messages })
-      });
-      data = await response.json();
-    } else {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system, messages, apiKey })
-      });
-      data = await response.json();
-    }
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system, messages })
+    });
+
+    const data = await response.json();
 
     if (data.error?.type === 'overloaded_error' && retries > 0) {
       showToast('⏳ Servidor ocupado, tentando novamente...');
@@ -222,35 +199,7 @@ Máximo 3-4 frases.`;
     return text.replace(/\[TAREFA:.*?\]/g, '').trim();
   } catch (err) {
     console.error('NEXO_ERROR', JSON.stringify({ msg: err.message, stack: err.stack }));
-    return `Opa, deu um erro aqui 😅 — ${err.message}`;
+    return `Tive um erro ao falar com o servidor. Verifique sua internet!`;
   }
 }
-async function callClaudeViaProxy(message, extra, name, tasks) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/nexo-chat`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message,
-        history: state.messages.slice(-5),
-        userName: name,
-        tasks: tasks,
-        extra: extra
-      })
-    });
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`HTTP error! status: ${res.status} - ${errBody}`);
-    }
-    const data = await res.json();
-    return data && data.reply ? data.reply : "O Nexo está meditando agora... tente mandar a mensagem de novo.";
-  } catch (e) {
-    console.error('Erro no Proxy:', e);
-    return `Tive um erro ao falar com o servidor. Detalhe: ${e.message}`;
-  }
-}

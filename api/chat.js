@@ -6,9 +6,14 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { messages, system, apiKey } = req.body;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'Server misconfigured: missing API key' });
 
-  if (!apiKey) return res.status(400).json({ error: 'API key missing' });
+  const { messages, system } = req.body;
+
+  if (!messages || !system) {
+    return res.status(400).json({ error: 'Missing messages or system prompt' });
+  }
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -20,7 +25,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1000,
+        max_tokens: 600,
         system,
         messages
       })
@@ -29,6 +34,7 @@ export default async function handler(req, res) {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (err) {
+    console.error('Claude API error:', err);
     res.status(500).json({ error: err.message });
   }
 }
