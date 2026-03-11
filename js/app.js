@@ -531,7 +531,7 @@ async function scheduleCheckIn() {
                     title: 'Nexo 🧠', 
                     body, 
                     id: 100 + i, 
-                    channelId: 'nexo_alerts',
+                    channelId: 'nexo_alerts_v2',
                     schedule: { at } 
                 });
             }
@@ -554,6 +554,7 @@ async function scheduleCheckIn() {
         else if (hour < 18) checkIn = `E aí ${name}! 🌤️ Já é tarde, como tão as coisas?`;
         else checkIn = `Boa noite ${name}! 🌙 Como foi o dia? Terminou tudo que queria?`;
         addMessage('assistant', checkIn);
+        if (typeof sendNotification === 'function') sendNotification('Nexo 🧠', checkIn);
     }, intervalMs);
 }
 
@@ -670,7 +671,7 @@ async function sendNotification(title, body) {
                     title, 
                     body, 
                     id: Math.floor(Math.random() * 100000), 
-                    channelId: 'nexo_alerts',
+                    channelId: 'nexo_alerts_v2',
                     schedule: { at: new Date(Date.now() + 500) } 
                 }]
             });
@@ -698,8 +699,8 @@ async function createNotificationChannel() {
     try {
         const { LocalNotifications } = window.Capacitor.Plugins;
         await LocalNotifications.createChannel({
-            id: 'nexo_alerts',
-            name: 'Check-ins do Nexo',
+            id: 'nexo_alerts_v2',
+            name: 'Check-ins do Nexo (Importante)',
             description: 'Canal para alertas de foco e produtividade',
             importance: 5, // High importance for sound/popup
             visibility: 1,
@@ -740,7 +741,7 @@ async function scheduleReminder(timeStr, text) {
                 id: Math.floor(Math.random() * 100000),
                 title: 'Lembrete do Nexo 🧠',
                 body: text,
-                channelId: 'nexo_alerts',
+                channelId: 'nexo_alerts_v2',
                 schedule: { at: scheduledDate }
             }]
         });
