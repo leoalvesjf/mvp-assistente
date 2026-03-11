@@ -17,16 +17,21 @@
     <div class="login-card" style="position:relative">
       <button id="close-auth-btn" class="icon-btn" onclick="closeAuthModal()" style="position:absolute;top:16px;right:16px;border:none;background:none">✕</button>
       <div class="avatar" style="width:60px;height:60px;margin:10px auto 16px;font-size:28px">🧠</div>
-      <div id="auth-header">
-        <h2 style="font-family:'Syne',sans-serif;margin-bottom:8px">Bem-vindo ao Nexo</h2>
-        <p style="color:var(--text-dim);font-size:14px">Escolha como deseja continuar</p>
+      <div id="auth-header" style="text-align:center">
+        <h2 id="auth-title" style="font-family:'Syne',sans-serif;margin-bottom:8px">Entrar no Nexo</h2>
+        <p id="auth-subtitle" style="color:var(--text-dim);font-size:14px">Digite seu telefone para continuar</p>
       </div>
       
-      <div id="auth-fields" style="margin-top:20px;display:flex;flex-direction:column;gap:10px">
-        <input type="text" id="reg-name" class="login-input" placeholder="Seu Nome completo" style="margin:0">
-        <input type="email" id="reg-email" class="login-input" placeholder="Seu melhor e-mail" style="margin:0">
+      <div id="auth-fields" style="margin-top:20px;display:flex;flex-direction:column;gap:12px">
+        <input type="text" id="reg-name" class="login-input" placeholder="Seu Nome completo" style="margin:0;display:none">
+        <input type="email" id="reg-email" class="login-input" placeholder="Seu melhor e-mail" style="margin:0;display:none">
         <input type="tel" id="reg-phone" class="login-input" placeholder="(00) 00000-0000" style="margin:0">
-        <button class="generate-btn" onclick="handleAuth()">Cadastrar / Entrar</button>
+        <button id="auth-submit-btn" class="generate-btn" onclick="handleAuth()" style="margin-top:8px">Entrar</button>
+      </div>
+
+      <div id="auth-toggle-container" style="margin-top:16px;text-align:center;font-size:13px">
+        <span id="auth-toggle-text" style="color:var(--text-dim)">Não tem uma conta?</span>
+        <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(event)" style="color:var(--accent);text-decoration:none;font-weight:600;margin-left:4px">Criar conta</a>
       </div>
 
       <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border); text-align:center">

@@ -120,6 +120,48 @@ function openAuthModal() {
     } else if (closeBtn) {
         closeBtn.style.display = 'block';
     }
+    
+    // Reset para modo login por padrão ao abrir
+    setAuthMode('login');
+}
+
+function setAuthMode(mode) {
+    const title = document.getElementById('auth-title');
+    const subtitle = document.getElementById('auth-subtitle');
+    const nameInput = document.getElementById('reg-name');
+    const emailInput = document.getElementById('reg-email');
+    const submitBtn = document.getElementById('auth-submit-btn');
+    const toggleText = document.getElementById('auth-toggle-text');
+    const toggleLink = document.getElementById('auth-toggle-link');
+
+    if (mode === 'login') {
+        if (title) title.textContent = 'Entrar no Nexo';
+        if (subtitle) subtitle.textContent = 'Digite seu telefone para continuar';
+        if (nameInput) nameInput.style.display = 'none';
+        if (emailInput) emailInput.style.display = 'none';
+        if (submitBtn) submitBtn.textContent = 'Entrar';
+        if (toggleText) toggleText.textContent = 'Não tem uma conta?';
+        if (toggleLink) {
+            toggleLink.textContent = 'Criar conta';
+            toggleLink.setAttribute('onclick', 'toggleAuthMode(event, "register")');
+        }
+    } else {
+        if (title) title.textContent = 'Criar sua conta';
+        if (subtitle) subtitle.textContent = 'Preencha os dados abaixo';
+        if (nameInput) nameInput.style.display = 'block';
+        if (emailInput) emailInput.style.display = 'block';
+        if (submitBtn) submitBtn.textContent = 'Cadastrar';
+        if (toggleText) toggleText.textContent = 'Já tem uma conta?';
+        if (toggleLink) {
+            toggleLink.textContent = 'Fazer login';
+            toggleLink.setAttribute('onclick', 'toggleAuthMode(event, "login")');
+        }
+    }
+}
+
+function toggleAuthMode(event, mode) {
+    if (event) event.preventDefault();
+    setAuthMode(mode);
 }
 
 function closeAuthModal() {
@@ -170,30 +212,47 @@ async function handleAuth() {
     const nameInput = document.getElementById('reg-name');
     const emailInput = document.getElementById('reg-email');
     const phoneInput = document.getElementById('reg-phone');
+    const submitBtn = document.getElementById('auth-submit-btn');
 
+    const isLoginMode = submitBtn && submitBtn.textContent === 'Entrar';
     const name = nameInput ? nameInput.value.trim() : '';
     const email = emailInput ? emailInput.value.trim() : '';
     const phone = phoneInput ? phoneInput.value.trim() : '';
 
-    if (!name || !email || !phone) {
-        showToast('Preencha os campos de cadastro!');
+    if (!phone) {
+        showToast('O telefone é obrigatório!');
+        return;
+    }
+
+    if (!isLoginMode && (!name || !email)) {
+        showToast('Preencha nome e e-mail para cadastrar!');
         return;
     }
 
     showToast('🚀 Autenticando...');
 
-    // Busca perfil se já existir
+    // Busca perfil
     let profile = await getProfile(phone);
     
-    if (!profile) {
-        // Novo usuário
-        profile = {
-            phone,
-            name,
-            email,
-            role: 'free'
-        };
-        await upsertProfile(profile);
+    if (isLoginMode) {
+        if (!profile) {
+            showToast('❌ Conta não encontrada. Verifique o número ou crie uma conta.');
+            setAuthMode('register');
+            return;
+        }
+    } else {
+        if (profile) {
+            showToast('💡 Você já tem uma conta! Fazendo login...');
+        } else {
+            // Novo usuário
+            profile = {
+                phone,
+                name,
+                email,
+                role: 'free'
+            };
+            await upsertProfile(profile);
+        }
     }
 
     state.settings.userName = profile.name;
